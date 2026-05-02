@@ -1,0 +1,126 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# ─── IP addresses ────────────────────────────────────────────
+CONTROL_IP  = "192.168.56.10"
+NGINX_IP    = "192.168.56.11"
+WEB1_IP     = "192.168.56.12"
+WEB2_IP     = "192.168.56.13"
+DATABASE_IP = "192.168.56.14"
+MONITOR_IP  = "192.168.56.15"
+
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "ubuntu/jammy64"
+
+  # ─── control (.10) ───────────────────────────────────────
+  # Ansible control node — runs playbooks against all other VMs
+  config.vm.define "control" do |control|
+    control.vm.hostname = "control"
+    control.vm.network "private_network", ip: CONTROL_IP
+
+    control.vm.provider "virtualbox" do |vb|
+      vb.name   = "control"
+      vb.memory = 1024
+      vb.cpus   = 1
+    end
+
+    control.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      apt-get install -y ansible git
+      echo "=== control: ready ==="
+    SHELL
+  end
+
+  # ─── nginx (.11) ─────────────────────────────────────────
+  # Load balancer — only VM reachable from host (port 8080)
+  config.vm.define "nginx" do |nginx|
+    nginx.vm.hostname = "nginx"
+    nginx.vm.network "private_network", ip: NGINX_IP
+    nginx.vm.network "forwarded_port",  guest: 80, host: 8080
+
+    nginx.vm.provider "virtualbox" do |vb|
+      vb.name   = "nginx"
+      vb.memory = 512
+      vb.cpus   = 1
+    end
+
+    nginx.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      echo "=== nginx: ready ==="
+    SHELL
+  end
+
+  # ─── web1 (.12) ──────────────────────────────────────────
+  # Flask + Gunicorn, server_name = "Server 1"
+  config.vm.define "web1" do |web1|
+    web1.vm.hostname = "web1"
+    web1.vm.network "private_network", ip: WEB1_IP
+
+    web1.vm.provider "virtualbox" do |vb|
+      vb.name   = "web1"
+      vb.memory = 512
+      vb.cpus   = 1
+    end
+
+    web1.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      echo "=== web1: ready ==="
+    SHELL
+  end
+
+  # ─── web2 (.13) ──────────────────────────────────────────
+  # Flask + Gunicorn, server_name = "Server 2"
+  config.vm.define "web2" do |web2|
+    web2.vm.hostname = "web2"
+    web2.vm.network "private_network", ip: WEB2_IP
+
+    web2.vm.provider "virtualbox" do |vb|
+      vb.name   = "web2"
+      vb.memory = 512
+      vb.cpus   = 1
+    end
+
+    web2.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      echo "=== web2: ready ==="
+    SHELL
+  end
+
+  # ─── database (.14) ──────────────────────────────────────
+  # PostgreSQL — only accessible from web1 and web2 (UFW)
+  config.vm.define "database" do |database|
+    database.vm.hostname = "database"
+    database.vm.network "private_network", ip: DATABASE_IP
+
+    database.vm.provider "virtualbox" do |vb|
+      vb.name   = "database"
+      vb.memory = 512
+      vb.cpus   = 1
+    end
+
+    database.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      echo "=== database: ready ==="
+    SHELL
+  end
+
+  # ─── monitor (.15) ───────────────────────────────────────
+  # Wazuh Manager + Dashboard — needs 2 GB RAM
+  config.vm.define "monitor" do |monitor|
+    monitor.vm.hostname = "monitor"
+    monitor.vm.network "private_network", ip: MONITOR_IP
+
+    monitor.vm.provider "virtualbox" do |vb|
+      vb.name   = "monitor"
+      vb.memory = 2048
+      vb.cpus   = 2
+    end
+
+    monitor.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      echo "=== monitor: ready ==="
+    SHELL
+  end
+
+end
