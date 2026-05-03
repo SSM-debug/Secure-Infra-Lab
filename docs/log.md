@@ -93,3 +93,76 @@ infrastrukturen från noll automatiskt.
 och Azure/AWS — ett team kan skapa identiska miljöer i molnet
 utan ett enda manuellt steg. Om en server kraschar ersätts den
 automatiskt med en identisk kopia.
+
+
+
+## Fas 2 — Ansible-konfiguration
+**Datum:** 2026-05-02
+**Git-commit:** 
+- 'Add Ansible config: ansible.cfg, inventory.ini, site.yml' 
+
+## Vad vi gjorde
+
+Skapade de tre grundläggande Ansible-filerna som behövs innan vi kan
+köra några roller. ansible.cfg talar om för Ansible var inventory-filen
+finns och hur den ska bete sig. inventory.ini listar alla 6 VMs med
+IP-adresser och SSH-inställningar. site.yml är master-playbooken som
+bestämmer vad som installeras på vilken server och i vilken ordning.
+
+
+## Kommandon vi körde
+
+powershell
+# Create ansible.cfg
+code E:\Secure-Infra-Lab\ansible\ansible.cfg
+
+# Create inventory.ini
+code E:\Secure-Infra-Lab\ansible\inventory.ini
+
+# Create site.yml
+code E:\Secure-Infra-Lab\ansible\site.yml
+
+# Stage all three files
+git add ansible/ansible.cfg ansible/inventory.ini ansible/site.yml
+
+# Verify correct files staged
+git status
+
+# Commit and push
+git commit -m "Add Ansible config: ansible.cfg, inventory.ini, site.yml"
+git push
+
+## Fel som dök upp
+Inga fel uppstod i denna fas.
+
+## Teorikoppling
+
+# Koncept 1: Inventory-fil
+Enkelt: En lista över alla servrar som Ansible känner till.
+Utan den vet Ansible inte att våra VMs existerar. Varje server
+får ett namn, ett IP och inloggningsuppgifter.
+Vårt projekt: inventory.ini listar alla 6 VMs med rätt IP-adresser
+från Vagrantfilen — control på .10, nginx på .11, web1 på .12 osv.
+Verkligheten: I produktion kan inventory genereras dynamiskt från
+molnleverantören — AWS listar automatiskt alla EC2-instanser som
+Ansible får konfigurera.
+
+# Koncept 2: Ansible Playbook
+Enkelt: En playbook är ett recept — den säger "på den här servern,
+kör de här stegen". site.yml är vår master-playbook som samordnar
+hela infrastrukturen i rätt ordning.
+Vårt projekt: database konfigureras först eftersom Flask behöver
+databasen innan den kan starta. nginx konfigureras sist eftersom
+lastbalanseraren behöver web1 och web2 vara klara.
+Verkligheten: Stora företag som Spotify och Netflix använder
+playbooks för att driftsätta hundratals servrar samtidigt —
+samma playbook, samma resultat, varje gång.
+
+# Koncept 3: ansible_connection=local
+Enkelt: Normalt SSH:ar Ansible till en annan server för att
+köra kommandon. Med connection=local kör Ansible direkt på samma
+maskin utan SSH — control konfigurerar sig själv.
+Vårt projekt: control-VM kör Ansible mot sig själv för sin
+egen konfiguration, och SSH:ar till alla andra VMs.
+Verkligheten: Används när en server ska konfigurera sig själv
+vid uppstart — till exempel i cloud-init-skript i AWS och Azure.
