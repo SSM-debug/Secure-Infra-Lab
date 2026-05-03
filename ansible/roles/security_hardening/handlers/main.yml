@@ -1,0 +1,6 @@
+---
+# Restart sshd only when sshd_config has changed
+- name: Restart sshd
+  service:
+    name: sshd
+    state: restarted

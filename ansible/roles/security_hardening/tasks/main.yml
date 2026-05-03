@@ -1,0 +1,39 @@
+---
+# ─── Update system packages ──────────────────────────────────
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+# ─── Install security tools ──────────────────────────────────
+- name: Install fail2ban and auditd
+  apt:
+    name:
+      - fail2ban
+      - auditd
+    state: present
+
+# ─── SSH hardening ───────────────────────────────────────────
+# Deploy hardened SSH config from Jinja2 template
+- name: Deploy hardened sshd_config
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart sshd
+
+# ─── fail2ban ────────────────────────────────────────────────
+- name: Enable and start fail2ban
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+
+# ─── auditd ──────────────────────────────────────────────────
+- name: Enable and start auditd
+  service:
+    name: auditd
+    state: started
+    enabled: yes

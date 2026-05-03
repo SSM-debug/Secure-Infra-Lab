@@ -1,4 +1,16 @@
 ---
+---
+# ─── Security hardening — all servers ───────────────────────
+# Run first — harden every VM before installing services
+- name: Apply security hardening to all servers
+  hosts: all
+  become: true
+  vars_files:
+    - vars/vars.yml
+    - ../vagrant/secrets.yml
+  roles:
+    - security_hardening
+    
 # ─── Database ────────────────────────────────────────────────
 # Database must be configured before web servers start
 - name: Configure database server

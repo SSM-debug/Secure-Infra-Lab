@@ -1,0 +1,32 @@
+# Managed by Ansible — do not edit manually
+
+# ─── Network ─────────────────────────────────────────────────
+Port 22
+AddressFamily inet
+
+# ─── Authentication ──────────────────────────────────────────
+# Disable root login — use sudo instead
+PermitRootLogin no
+
+# Disable password login — SSH keys only
+PasswordAuthentication no
+
+# Enable public key authentication
+PubkeyAuthentication yes
+
+# Path to authorized keys file
+AuthorizedKeysFile .ssh/authorized_keys
+
+# ─── Security ────────────────────────────────────────────────
+# Disconnect idle sessions after 5 minutes
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+# Limit authentication attempts per connection
+MaxAuthTries 3
+
+# Allow only vagrant user to SSH
+AllowUsers vagrant
+
+# ─── Subsystems ──────────────────────────────────────────────
+Subsystem sftp /usr/lib/openssh/sftp-server
