@@ -1,0 +1,52 @@
+---
+# ─── Database ────────────────────────────────────────────────
+# Database must be configured before web servers start
+- name: Configure database server
+  hosts: database
+  become: true
+  vars_files:
+    - vars/vars.yml
+    - ../vagrant/secrets.yml
+  roles:
+    - database
+
+# ─── Web server 1 ────────────────────────────────────────────
+- name: Configure web server 1
+  hosts: webserver
+  become: true
+  vars_files:
+    - vars/vars.yml
+    - ../vagrant/secrets.yml
+  roles:
+    - flask
+
+# ─── Web server 2 ────────────────────────────────────────────
+- name: Configure web server 2
+  hosts: webserver2
+  become: true
+  vars_files:
+    - vars/vars.yml
+    - ../vagrant/secrets.yml
+  roles:
+    - flask
+
+# ─── Load balancer ───────────────────────────────────────────
+# nginx configured last — web1 and web2 must exist first
+- name: Configure nginx load balancer
+  hosts: nginx
+  become: true
+  vars_files:
+    - vars/vars.yml
+    - ../vagrant/secrets.yml
+  roles:
+    - nginx
+
+# ─── Monitor ─────────────────────────────────────────────────
+- name: Configure monitor server
+  hosts: monitor
+  become: true
+  vars_files:
+    - vars/vars.yml
+    - ../vagrant/secrets.yml
+  roles:
+    - wazuh_agent
