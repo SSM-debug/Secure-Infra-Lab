@@ -101,7 +101,7 @@ automatiskt med en identisk kopia.
 **Git-commit:** 
 - 'Add Ansible config: ansible.cfg, inventory.ini, site.yml' 
 
-## Vad vi gjorde
+### Vad vi gjorde
 
 Skapade de tre grundläggande Ansible-filerna som behövs innan vi kan
 köra några roller. ansible.cfg talar om för Ansible var inventory-filen
@@ -110,34 +110,34 @@ IP-adresser och SSH-inställningar. site.yml är master-playbooken som
 bestämmer vad som installeras på vilken server och i vilken ordning.
 
 
-## Kommandon vi körde
+### Kommandon vi körde
 
 powershell
-# Create ansible.cfg
+### Create ansible.cfg
 code E:\Secure-Infra-Lab\ansible\ansible.cfg
 
-# Create inventory.ini
+### Create inventory.ini
 code E:\Secure-Infra-Lab\ansible\inventory.ini
 
-# Create site.yml
+### Create site.yml
 code E:\Secure-Infra-Lab\ansible\site.yml
 
-# Stage all three files
+### Stage all three files
 git add ansible/ansible.cfg ansible/inventory.ini ansible/site.yml
 
-# Verify correct files staged
+### Verify correct files staged
 git status
 
-# Commit and push
+### Commit and push
 git commit -m "Add Ansible config: ansible.cfg, inventory.ini, site.yml"
 git push
 
-## Fel som dök upp
+### Fel som dök upp
 Inga fel uppstod i denna fas.
 
-## Teorikoppling
+### Teorikoppling
 
-# Koncept 1: Inventory-fil
+### Koncept 1: Inventory-fil
 Enkelt: En lista över alla servrar som Ansible känner till.
 Utan den vet Ansible inte att våra VMs existerar. Varje server
 får ett namn, ett IP och inloggningsuppgifter.
@@ -147,7 +147,7 @@ Verkligheten: I produktion kan inventory genereras dynamiskt från
 molnleverantören — AWS listar automatiskt alla EC2-instanser som
 Ansible får konfigurera.
 
-# Koncept 2: Ansible Playbook
+### Koncept 2: Ansible Playbook
 Enkelt: En playbook är ett recept — den säger "på den här servern,
 kör de här stegen". site.yml är vår master-playbook som samordnar
 hela infrastrukturen i rätt ordning.
@@ -158,7 +158,7 @@ Verkligheten: Stora företag som Spotify och Netflix använder
 playbooks för att driftsätta hundratals servrar samtidigt —
 samma playbook, samma resultat, varje gång.
 
-# Koncept 3: ansible_connection=local
+### Koncept 3: ansible_connection=local
 Enkelt: Normalt SSH:ar Ansible till en annan server för att
 köra kommandon. Med connection=local kör Ansible direkt på samma
 maskin utan SSH — control konfigurerar sig själv.
