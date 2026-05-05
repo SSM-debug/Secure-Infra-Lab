@@ -48,8 +48,8 @@ kontrollerade att alla var uppe och körde.
 # Skapa projektmappen på E-disken
 # Varför E:\ och inte C:\: Vagrant och VirtualBox
 # fungerar bättre med korta sökvägar utan mellanslag
-mkdir E:\Secure-Infra-Lab
-cd E:\Secure-Infra-Lab
+PS C:\> mkdir E:\Secure-Infra-Lab
+PS C:\> cd E:\Secure-Infra-Lab
 ```
 Förväntat output: Mappen skapas utan felmeddelanden.  
 Vad vi fick: Mappen skapades korrekt ✅
@@ -58,7 +58,7 @@ Vad vi fick: Mappen skapades korrekt ✅
 # Starta Git-versionshantering i mappen
 # Varför: Vi vill spåra alla ändringar och kunna
 # gå tillbaka till tidigare versioner
-git init
+PS E:\Secure-Infra-Lab> git init
 ```
 Förväntat output: `Initialized empty Git repository in E:/Secure-Infra-Lab/.git/`  
 Vad vi fick: Exakt det förväntade ✅
@@ -67,7 +67,7 @@ Vad vi fick: Exakt det förväntade ✅
 # Skapa hela mappstrukturen i ett kommando
 # Varför: Bättre att ha strukturen klar från början
 # än att skapa mappar efterhand
-mkdir vagrant, ansible\roles\security_hardening, `
+PS E:\Secure-Infra-Lab> mkdir vagrant, ansible\roles\security_hardening, `
       ansible\roles\flask, ansible\roles\nginx, `
       ansible\roles\database, ansible\roles\wazuh_agent, `
       ansible\vars, docs
@@ -77,15 +77,15 @@ Vad vi fick: Alla mappar skapades korrekt ✅
 
 ```powershell
 # Öppna Vagrantfilen i VS Code och klistra in innehållet
-code E:\Secure-Infra-Lab\vagrant\Vagrantfile
+PS E:\Secure-Infra-Lab> code E:\Secure-Infra-Lab\vagrant\Vagrantfile
 ```
 Förväntat output: VS Code öppnar en tom fil.  
 Vad vi fick: Filen öppnades korrekt ✅
 
 ```powershell
 # Spara nuläget i Git — första commit
-git add .
-git commit -m "Initial structure: Vagrantfile for 6 VMs"
+PS E:\Secure-Infra-Lab> git add .
+PS E:\Secure-Infra-Lab> git commit -m "Initial structure: Vagrantfile for 6 VMs"
 ```
 Förväntat output:
 ```
@@ -96,18 +96,22 @@ Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
 # Koppla lokalt repo till GitHub och publicera
-git remote add origin https://github.com/SSM-debug/Secure-Infra-Lab.git
-git push -u origin main
+PS E:\Secure-Infra-Lab> git remote add origin https://github.com/SSM-debug/Secure-Infra-Lab.git
+PS E:\Secure-Infra-Lab> git push -u origin main
 ```
 Förväntat output: `Branch 'main' set up to track remote branch 'main' from 'origin'.`  
 Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
+# Gå in i vagrant-mappen — Vagrantfilen måste ligga här
+# Varför: vagrant up letar alltid efter Vagrantfile
+# i den aktuella mappen
+PS E:\Secure-Infra-Lab> cd E:\Secure-Infra-Lab\vagrant
+
 # Starta control-servern först för att testa
 # Varför en i taget: Om något går fel vet vi
 # exakt vilken server som krånglar
-cd E:\Secure-Infra-Lab\vagrant
-vagrant up control
+PS E:\Secure-Infra-Lab\vagrant> vagrant up control
 ```
 Förväntat output på slutet: `=== control: ready ===`  
 Vad vi fick: `ansible 2.10.8` — för gammal version ❌  
@@ -119,25 +123,27 @@ via `pip3 install ansible` istället för `apt-get install ansible`.
 
 ```powershell
 # Starta om control med den uppdaterade Vagrantfilen
-vagrant reload --provision control
+# Varför --provision: Kör provisioner-skriptet igen
+# även om servern redan startats en gång
+PS E:\Secure-Infra-Lab\vagrant> vagrant reload --provision control
 ```
 Förväntat output på slutet: `=== control: ready ===`  
 Vad vi fick: `ansible [core 2.17.14]` ✅
 
 ```powershell
 # Starta resterande servrar en i taget
-vagrant up nginx
-vagrant up web1
-vagrant up web2
-vagrant up database
-vagrant up monitor
+PS E:\Secure-Infra-Lab\vagrant> vagrant up nginx
+PS E:\Secure-Infra-Lab\vagrant> vagrant up web1
+PS E:\Secure-Infra-Lab\vagrant> vagrant up web2
+PS E:\Secure-Infra-Lab\vagrant> vagrant up database
+PS E:\Secure-Infra-Lab\vagrant> vagrant up monitor
 ```
 Förväntat output för varje server: `=== [servernamn]: ready ===`  
 Vad vi fick: Alla servrar startade korrekt ✅
 
 ```powershell
 # Kontrollera att alla servrar är uppe
-vagrant status
+PS E:\Secure-Infra-Lab\vagrant> vagrant status
 ```
 Förväntat output:
 ```
@@ -151,13 +157,14 @@ monitor     running (virtualbox)
 Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
+# Gå tillbaka till projektmappen för Git-kommandon
+PS E:\Secure-Infra-Lab\vagrant> cd E:\Secure-Infra-Lab
+
 # Fixa .gitignore — hindra känsliga filer från GitHub
-# Vagrant skapar automatiskt en .vagrant/-mapp med
-# SSH-nycklar som aldrig ska publiceras
-git rm -r --cached vagrant/.vagrant/
-git add .gitignore vagrant/Vagrantfile
-git commit -m "Add .gitignore and fix control provisioner: install Ansible via pip instead of apt"
-git push
+PS E:\Secure-Infra-Lab> git rm -r --cached vagrant/.vagrant/
+PS E:\Secure-Infra-Lab> git add .gitignore vagrant/Vagrantfile
+PS E:\Secure-Infra-Lab> git commit -m "Add .gitignore and fix control provisioner: install Ansible via pip instead of apt"
+PS E:\Secure-Infra-Lab> git push
 ```
 Förväntat output: Commit bekräftas utan felmeddelanden.  
 Vad vi fick: Exakt det förväntade ✅
@@ -259,7 +266,7 @@ försöker Flask ansluta till en databas som inte finns
 # Skapa ansible.cfg i VS Code
 # Varför: Utan den måste vi ange alla inställningar
 # som flaggor varje gång vi kör Ansible
-code E:\Secure-Infra-Lab\ansible\ansible.cfg
+PS E:\Secure-Infra-Lab> code E:\Secure-Infra-Lab\ansible\ansible.cfg
 ```
 Förväntat output: VS Code öppnar en tom fil.  
 Vad vi fick: Filen öppnades korrekt ✅
@@ -268,7 +275,7 @@ Vad vi fick: Filen öppnades korrekt ✅
 # Skapa inventory.ini i VS Code
 # Varför: Ansible måste veta vilka servrar som finns
 # och hur man når dem
-code E:\Secure-Infra-Lab\ansible\inventory.ini
+PS E:\Secure-Infra-Lab> code E:\Secure-Infra-Lab\ansible\inventory.ini
 ```
 Förväntat output: VS Code öppnar en tom fil.  
 Vad vi fick: Filen öppnades korrekt ✅
@@ -277,16 +284,16 @@ Vad vi fick: Filen öppnades korrekt ✅
 # Skapa site.yml i VS Code
 # Varför: Huvudplanen som bestämmer vad som
 # installeras på vilken server och i vilken ordning
-code E:\Secure-Infra-Lab\ansible\site.yml
+PS E:\Secure-Infra-Lab> code E:\Secure-Infra-Lab\ansible\site.yml
 ```
 Förväntat output: VS Code öppnar en tom fil.  
 Vad vi fick: Filen öppnades korrekt ✅
 
 ```powershell
 # Publicera alla tre filer till GitHub
-git add ansible/ansible.cfg ansible/inventory.ini ansible/site.yml
-git commit -m "Add Ansible config: ansible.cfg, inventory.ini, site.yml"
-git push
+PS E:\Secure-Infra-Lab> git add ansible/ansible.cfg ansible/inventory.ini ansible/site.yml
+PS E:\Secure-Infra-Lab> git commit -m "Add Ansible config: ansible.cfg, inventory.ini, site.yml"
+PS E:\Secure-Infra-Lab> git push
 ```
 Förväntat output:
 ```
@@ -409,18 +416,18 @@ bevis på att rollen är idempotent.
 # Skapa mappstruktur för security_hardening-rollen
 # Varför: Ansible letar alltid efter tasks/, handlers/
 # och templates/ inuti en roll — strukturen måste stämma
-mkdir E:\Secure-Infra-Lab\ansible\roles\security_hardening\tasks
-mkdir E:\Secure-Infra-Lab\ansible\roles\security_hardening\handlers
-mkdir E:\Secure-Infra-Lab\ansible\roles\security_hardening\templates
+PS E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\tasks
+PS E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\handlers
+PS E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\templates
 ```
 Förväntat output: Inga felmeddelanden.  
 Vad vi fick: Mapparna skapades korrekt ✅
 
 ```powershell
 # Skapa rollfilerna i VS Code
-code E:\Secure-Infra-Lab\ansible\roles\security_hardening\tasks\main.yml
-code E:\Secure-Infra-Lab\ansible\roles\security_hardening\handlers\main.yml
-code E:\Secure-Infra-Lab\ansible\roles\security_hardening\templates\sshd_config.j2
+PS E:\Secure-Infra-Lab> code ansible\roles\security_hardening\tasks\main.yml
+PS E:\Secure-Infra-Lab> code ansible\roles\security_hardening\handlers\main.yml
+PS E:\Secure-Infra-Lab> code ansible\roles\security_hardening\templates\sshd_config.j2
 ```
 Förväntat output: VS Code öppnar varje fil.  
 Vad vi fick: Filerna öppnades korrekt ✅
@@ -429,7 +436,7 @@ Vad vi fick: Filerna öppnades korrekt ✅
 # Skapa tomma platshållarfiler för roller som inte finns än
 # Varför: Ansible validerar ALLA roller i site.yml vid uppstart
 # — även roller vi inte kör just nu. Utan platshållare kraschar Ansible
-foreach ($role in @("database", "flask", "nginx", "wazuh_agent")) {
+PS E:\Secure-Infra-Lab> foreach ($role in @("database", "flask", "nginx", "wazuh_agent")) {
     $path = "E:\Secure-Infra-Lab\ansible\roles\$role\tasks\main.yml"
     Set-Content -Path $path -Value "---`n# Placeholder — role not yet implemented"
     Write-Host "Created: $path"
@@ -440,39 +447,41 @@ Vad vi fick: Alla fyra platshållarfiler skapades ✅
 
 ```powershell
 # Fixa radbrytningsproblem en gång för alla
-# Varför: Windows använder CRLF, Linux använder LF.
+# Varför: Windows använder CRLF, Linux använder LF
 # Fel radbrytningar kan göra att Bash-skript och
 # YAML-filer inte fungerar på Linux-servrarna
-git config core.autocrlf false
-git config core.eol lf
-code E:\Secure-Infra-Lab\.gitattributes
+PS E:\Secure-Infra-Lab> git config core.autocrlf false
+PS E:\Secure-Infra-Lab> git config core.eol lf
+PS E:\Secure-Infra-Lab> code .gitattributes
 ```
 Förväntat output: VS Code öppnar .gitattributes för redigering.  
 Vad vi fick: Filen öppnades korrekt ✅
 
 ```powershell
 # Normalisera alla befintliga filer till LF
-git rm --cached -r .
-git reset --hard
-git add .
-git commit -m "Normalize line endings to LF across all files"
-git push
+PS E:\Secure-Infra-Lab> git rm --cached -r .
+PS E:\Secure-Infra-Lab> git reset --hard
+PS E:\Secure-Infra-Lab> git add .
+PS E:\Secure-Infra-Lab> git commit -m "Normalize line endings to LF across all files"
+PS E:\Secure-Infra-Lab> git push
 ```
 Förväntat output: Commit bekräftas utan CRLF-varningar.  
 Vad vi fick: Exakt det förväntade — inga fler CRLF-varningar ✅
 
 ```powershell
-# Hämta controls publika nyckel
-$pubkey = vagrant ssh control -c "cat /home/vagrant/.ssh/id_rsa.pub"
+# Hämta controls publika nyckel och spara i en variabel
+# Varför: Vi behöver nyckeln för att kopiera den
+# till alla andra servrar
+PS E:\Secure-Infra-Lab\vagrant> $pubkey = vagrant ssh control -c "cat /home/vagrant/.ssh/id_rsa.pub"
 ```
 Förväntat output: Ingen synlig output — nyckeln sparas i variabeln.  
 Vad vi fick: Nyckeln hämtades korrekt ✅
 
 ```powershell
 # Kopiera controls publika nyckel till alla andra servrar
-# Varför: Ansible SSH:ar från control till alla servrar.
-# Utan den här nyckeln i authorized_keys nekas åtkomst
-foreach ($vm in @("nginx", "web1", "web2", "database", "monitor")) {
+# Varför: Ansible SSH:ar från control till alla servrar
+# Utan nyckeln i authorized_keys nekas åtkomst
+PS E:\Secure-Infra-Lab\vagrant> foreach ($vm in @("nginx", "web1", "web2", "database", "monitor")) {
     $port = (vagrant ssh-config $vm | Select-String "Port").ToString().Trim().Split(" ")[1]
     $keyfile = (vagrant ssh-config $vm | Select-String "IdentityFile").ToString().Trim().Split(" ")[1]
     echo $pubkey | ssh -i $keyfile -p $port -o StrictHostKeyChecking=no vagrant@127.0.0.1 "cat >> /home/vagrant/.ssh/authorized_keys"
@@ -480,17 +489,18 @@ foreach ($vm in @("nginx", "web1", "web2", "database", "monitor")) {
 ```
 Förväntat output: `Warning: Permanently added '[127.0.0.1]:XXXX'` för varje server.  
 Vad vi fick: nginx, web1, web2, database lyckades ✅  
-Fel vi fick: monitor fick `kex_exchange_identification: read: Connection reset`  
+Fel vi fick på monitor: `kex_exchange_identification: read: Connection reset`  
 Orsak: Monitor hade precis startats om och SSH var inte redo än.  
 Lösning: Körde `vagrant reload monitor` och försökte igen — lyckades ✅
 
 ---
 
-#### Bash — inuti control-servern (vagrant ssh control)
+#### Bash — inuti control-servern
 
 ```bash
-# SSH:a in i control-servern
-vagrant ssh control
+# Logga in på control-servern
+# Kör från: E:\Secure-Infra-Lab\vagrant
+PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control
 ```
 Förväntat output: `vagrant@control:~$`  
 Vad vi fick: Inloggning lyckades ✅
@@ -499,7 +509,7 @@ Vad vi fick: Inloggning lyckades ✅
 # Skapa mappstruktur för platshållarroller inuti control-servern
 # Varför: Ansible på control-servern letar efter roller
 # i /home/vagrant/ansible/roles/
-for role in database flask nginx wazuh_agent; do
+vagrant@control:~$ for role in database flask nginx wazuh_agent; do
     mkdir -p /home/vagrant/ansible/roles/$role/tasks
     echo -e "---\n# Placeholder — role not yet implemented" \
     > /home/vagrant/ansible/roles/$role/tasks/main.yml
@@ -510,7 +520,7 @@ Vad vi fick: Alla mappar och filer skapades korrekt ✅
 
 ```bash
 # Verifiera att alla rollmappar och filer finns
-find /home/vagrant/ansible/roles -name "main.yml"
+vagrant@control:~$ find /home/vagrant/ansible/roles -name "main.yml"
 ```
 Förväntat output:
 ```
@@ -528,8 +538,8 @@ Vad vi fick: Exakt det förväntade ✅
 # Varför: Control behöver ett eget nyckelpar för att
 # autentisera mot nginx, web1, web2, database och monitor
 # -t ed25519: modern och säker nyckeltyp
-# -N "": inget lösenord på nyckeln (behövs för automation)
-ssh-keygen -t ed25519 -f /home/vagrant/.ssh/id_rsa -N ""
+# -N "": inget lösenord på nyckeln — krävs för automation
+vagrant@control:~$ ssh-keygen -t ed25519 -f /home/vagrant/.ssh/id_rsa -N ""
 ```
 Förväntat output:
 ```
@@ -540,21 +550,21 @@ Vad vi fick: Exakt det förväntade ✅
 
 ```bash
 # Verifiera att nycklarna skapades korrekt
-ls -la /home/vagrant/.ssh/
+vagrant@control:~$ ls -la /home/vagrant/.ssh/
 ```
 Förväntat output:
 ```
--rw------- id_rsa      (privat nyckel — stannar här, lämnar aldrig control)
--rw-r--r-- id_rsa.pub  (publik nyckel — kopieras till alla andra servrar)
+-rw------- id_rsa      (privat nyckel — stannar här)
+-rw-r--r-- id_rsa.pub  (publik nyckel — kopieras till andra servrar)
 ```
 Vad vi fick: Exakt det förväntade ✅
 
 ```bash
-# Kör playbooken mot bara control-servern först
+# Gå till ansible-mappen och kör playbooken mot bara control
 # Varför: Säkrare att testa mot en server innan vi
 # kör mot alla sex
-cd /home/vagrant/ansible
-ansible-playbook site.yml --limit control
+vagrant@control:~$ cd /home/vagrant/ansible
+vagrant@control:~/ansible$ ansible-playbook site.yml --limit control
 ```
 Förväntat output:
 ```
@@ -565,7 +575,7 @@ Vad vi fick: Exakt det förväntade ✅
 
 ```bash
 # Kör playbooken mot alla sex servrar
-ansible-playbook site.yml
+vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
 Förväntat output: `failed=0` för alla sex servrar.  
 Vad vi fick:
@@ -578,15 +588,18 @@ web2      ok=8  changed=5  failed=0  ✅
 monitor   ok=2  failed=1            ❌
 ```
 Fel vi fick: monitor fick `failed=1` första gången.  
-Orsak: Monitor hade precis startats om och var inte helt
-redo. Vi körde `ansible-playbook site.yml --limit monitor`
-igen och det fungerade.
+Orsak: Monitor hade precis startats om och var inte helt redo.  
+Lösning: Körde playbooken igen mot bara monitor:
+```bash
+vagrant@control:~/ansible$ ansible-playbook site.yml --limit monitor
+```
+Resultat: `ok=8  changed=4  failed=0` ✅
 
 ```bash
 # Verifiera idempotens — kör playbooken en gång till
 # Förväntat: changed=0 på alla servrar eftersom
 # allt redan är konfigurerat
-ansible-playbook site.yml
+vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
 Förväntat output: `changed=0` på alla servrar.  
 Vad vi fick:
@@ -599,7 +612,7 @@ web1      ok=7  changed=0  failed=0
 web2      ok=7  changed=0  failed=0
 ```
 Control visade `changed=1` — det är apt cache-uppdateringen
-som alltid räknas som changed. Alla andra servrar visade
+som alltid räknas som changed. Alla andra visade
 `changed=0` — idempotens bekräftad ✅
 
 ---
@@ -666,8 +679,7 @@ De ersätts med riktig kod när vi kommer till respektive fas.
 **Vad som hände:** Vagrant skapar SSH-nycklar för att
 du ska kunna logga in i VMs från Windows. Men dessa
 nycklar delas inte automatiskt mellan VMs. Control
-saknade ett eget nyckelpar för att autentisera mot
-de andra servrarna.  
+saknade ett eget nyckelpar.  
 **Lösning:** Vi genererade ett nytt ED25519-nyckelpar
 på control med `ssh-keygen`. Sedan kopierade vi den
 publika nyckeln till `authorized_keys` på varje server
@@ -677,7 +689,7 @@ via Vagrants egna nycklar från Windows-sidan.
 **Felmeddelande:** `kex_exchange_identification: read: Connection reset`  
 **Vad som hände:** Monitor hade precis startats om och
 SSH-tjänsten var inte redo än. Monitor har 2048 MB RAM
-och behöver längre tid för att starta än övriga servrar.  
+och behöver längre tid för att starta.  
 **Lösning:** `vagrant reload monitor` följt av ett nytt
 försök efter att servern var helt uppe.
 
@@ -685,10 +697,14 @@ försök efter att servern var helt uppe.
 **Felmeddelande:** `warning: LF will be replaced by CRLF`  
 **Vad som hände:** Git på Windows konverterade alla filer
 till CRLF automatiskt. Det kan göra att Bash-skript och
-YAML-filer inte fungerar korrekt på Linux-servrar.  
+YAML-filer inte fungerar på Linux-servrar.  
 **Lösning:** Vi skapade `.gitattributes` med regeln
 `* text=auto eol=lf` och normaliserade alla befintliga
-filer med `git rm --cached -r . && git reset --hard`.
+filer med:
+```powershell
+PS E:\Secure-Infra-Lab> git rm --cached -r .
+PS E:\Secure-Infra-Lab> git reset --hard
+```
 
 ---
 
@@ -699,7 +715,7 @@ filer med `git rm --cached -r . && git reset --hard`.
 SSH-nycklar fungerar som ett digitalt lås och nyckel.
 Den publika nyckeln är låset — den läggs på servern.
 Den privata nyckeln är nyckeln — den stannar hos den
-som ska logga in. Ingen lösenord skickas över nätverket.
+som ska logga in. Inget lösenord skickas över nätverket.
 
 I det här projektet har control-servern den privata
 nyckeln. Vi kopierade den publika nyckeln till alla
@@ -780,25 +796,25 @@ branches och merglas till `main` när de är klara.
 ```powershell
 # Spara nuläget som en permanent namngiven version
 # Varför: En tag är en fast referens till ett specifikt
-# ögonblick i historiken. Vi kan alltid gå tillbaka hit
-git tag v1.0-baseline
-git push origin v1.0-baseline
+# ögonblick i historiken — vi kan alltid gå tillbaka hit
+PS E:\Secure-Infra-Lab> git tag v1.0-baseline
+PS E:\Secure-Infra-Lab> git push origin v1.0-baseline
 ```
 Förväntat output: `* [new tag] v1.0-baseline -> v1.0-baseline`  
 Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
 # Skapa en ny branch för dokumentationsuppdateringen
-# Varför: Vi vill inte jobba direkt på main. En branch
-# håller arbetet isolerat tills det är klart och granskat
-git checkout -b docs/update-v2
+# Varför: Vi vill inte jobba direkt på main
+# En branch håller arbetet isolerat tills det är klart
+PS E:\Secure-Infra-Lab> git checkout -b docs/update-v2
 ```
 Förväntat output: `Switched to a new branch 'docs/update-v2'`  
 Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
 # Verifiera att vi är på rätt branch
-git branch
+PS E:\Secure-Infra-Lab> git branch
 ```
 Förväntat output:
 ```
@@ -809,18 +825,17 @@ Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
 # Pusha branchen till GitHub för första gången
-# Varför: Nya branches måste kopplas till GitHub
-# explicit första gången
-git push --set-upstream origin docs/update-v2
+# Varför: Nya branches måste kopplas till GitHub explicit
+PS E:\Secure-Infra-Lab> git push --set-upstream origin docs/update-v2
 ```
 Förväntat output: `* [new branch] docs/update-v2 -> docs/update-v2`  
 Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
 # Merga den färdiga branchen till main
-git checkout main
-git merge docs/update-v2
-git push
+PS E:\Secure-Infra-Lab> git checkout main
+PS E:\Secure-Infra-Lab> git merge docs/update-v2
+PS E:\Secure-Infra-Lab> git push
 ```
 Förväntat output: `Fast-forward` med lista över ändrade filer.  
 Vad vi fick: Merge lyckades utan konflikter ✅
