@@ -477,3 +477,71 @@ revisionslogg över systemhändelser.
 - fail2ban: https://www.fail2ban.org/wiki/index.php/MANUAL_0_8
 - auditd: https://linux.die.net/man/8/auditd
 - OpenSSH sshd_config: https://man.openbsd.org/sshd_config
+
+
+---
+
+## Övrigt — Git branching-strategi
+**Datum:** 2026-05-05  
+**Git-commits:**
+- `Add .gitattributes: enforce LF line endings for all files`
+- `Update docs: professional projektplan.md and enhanced log.md`
+
+### Vad vi gjorde
+Implementerade en professionell Git branching-strategi för
+projektet. Nuläget taggades som `v1.0-baseline` för permanent
+bevarande. Dokumentationsuppdateringar genomfördes på en
+dedikerad branch (`docs/update-v2`) och mergades sedan till
+`main`.
+
+### Körda kommandon
+
+```powershell
+# Tagga nuläget som en namngiven version
+git tag v1.0-baseline
+git push origin v1.0-baseline
+```
+Förväntat output: `* [new tag] v1.0-baseline -> v1.0-baseline`
+
+```powershell
+# Skapa ny branch för dokumentationsuppdatering
+git checkout -b docs/update-v2
+```
+Förväntat output: `Switched to a new branch 'docs/update-v2'`
+
+```powershell
+# Pusha ny branch till GitHub
+git push --set-upstream origin docs/update-v2
+```
+Förväntat output: `* [new branch] docs/update-v2 -> docs/update-v2`
+
+```powershell
+# Merga till main när uppdateringen är klar
+git checkout main
+git merge docs/update-v2
+git push
+```
+Förväntat output: `Fast-forward` med lista över ändrade filer.
+
+### Teorikoppling
+
+**Koncept:** Git branching och versionshantering  
+En branch är en isolerad arbetskopia av koden. Ändringar
+på en branch påverkar inte `main` förrän en explicit merge
+genomförs. Detta möjliggör parallellt arbete och säkerställer
+att `main` alltid innehåller en stabil, granskad version.
+
+En tag är en permanent, namngiven referens till ett specifikt
+commit — till skillnad från en branch som rör sig framåt
+vid varje commit. `v1.0-baseline` bevarar projektets exakta
+tillstånd vid en given tidpunkt för alltid.
+
+I professionella projekt används Pull Requests för att
+granska kod innan merge — teammedlemmar granskar ändringar
+och godkänner dem explicit. GitHub notifierade om denna
+möjlighet vid push av `docs/update-v2`.
+
+**Officiell dokumentation:**  
+- Git branching: https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell  
+- Git tagging: https://git-scm.com/book/en/v2/Git-Basics-Tagging
+
