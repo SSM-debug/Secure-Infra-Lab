@@ -11,97 +11,93 @@
 ## Innehållsförteckning
 
 1. [Syfte och mål](#1-syfte-och-mål)
-2. [Teknisk översikt](#2-teknisk-översikt)
-3. [Systemarkitektur](#3-systemarkitektur)
-4. [VM-specifikation](#4-vm-specifikation)
-5. [Mappstruktur](#5-mappstruktur)
-6. [Trafikflöde](#6-trafikflöde)
-7. [Säkerhetsstrategi](#7-säkerhetsstrategi)
-8. [Ansible-roller](#8-ansible-roller)
-9. [Fasplanering](#9-fasplanering)
-10. [Designkrav](#10-designkrav)
-11. [Förväntat resultat](#11-förväntat-resultat)
+2. [Verktyg vi använder](#2-verktyg-vi-använder)
+3. [Så här ser systemet ut](#3-så-här-ser-systemet-ut)
+4. [Våra servrar](#4-våra-servrar)
+5. [Hur filerna är organiserade](#5-hur-filerna-är-organiserade)
+6. [Vad händer när någon besöker sidan](#6-vad-händer-när-någon-besöker-sidan)
+7. [Hur vi skyddar systemet](#7-hur-vi-skyddar-systemet)
+8. [Vad varje Ansible-roll gör](#8-vad-varje-ansible-roll-gör)
+9. [Arbetsplan](#9-arbetsplan)
+10. [Krav vi ställer på systemet](#10-krav-vi-ställer-på-systemet)
+11. [Vad vi förväntar oss när allt är klart](#11-vad-vi-förväntar-oss-när-allt-är-klart)
 
 ---
 
 ## 1. Syfte och mål
 
-Secure-Infra-Lab är ett infrastrukturprojekt som demonstrerar
-hur en komplett, säkerhetshärdad webbmiljö kan automatiseras
-och driftsättas reproducerbart med moderna DevOps-verktyg.
+Det här projektet handlar om att bygga en komplett webbmiljö
+med sex virtuella servrar — helt automatiskt, från grunden,
+med ett enda kommando.
 
-Projektet visar att infrastruktur kan beskrivas som kod —
-vilket eliminerar manuella konfigurationsfel, säkerställer
-identiska miljöer vid varje driftsättning och möjliggör
-snabb återställning vid driftstörning.
+Vi visar att det går att beskriva hela infrastrukturen som
+kod. Det betyder att miljön alltid ser likadan ut, oavsett
+vem som sätter upp den eller när. Det kallas
+Infrastructure-as-Code och är standard i moderna
+IT-miljöer.
 
-**Projektets tre huvudmål:**
+Projektet har tre huvudmål:
 
-**Automatisering** — Hela infrastrukturen, från tomma
-virtuella maskiner till ett fungerande webbsystem med
-databas och säkerhetsövervakning, driftsätts med ett
-enda kommando utan manuella ingrepp.
+**Automatisering** — Allt från tomma servrar till ett
+färdigt webbsystem med databas och säkerhetsövervakning
+sätts upp automatiskt. Ingen manuell konfiguration behövs.
 
-**Säkerhet** — Varje komponent är härdad enligt
-principen Defense-in-Depth. Nätverkssegmentering,
-brandväggsregler, SSH-härdning och intrångsdetektering
-implementeras som kod och tillämpas konsekvent på
-samtliga noder.
+**Säkerhet** — Varje server är skyddad på flera sätt.
+Vi använder nätverkssegmentering, brandväggsregler,
+SSH-härdning och intrångsdetektering. Allt är
+konfigurerat som kod och gäller på alla servrar.
 
-**Reproducerbarhet** — Miljön är fullständigt
-reproducerbar. Förstörs infrastrukturen återbyggs den
-identiskt. Detta verifieras automatiskt av
-testskript som körs mot den färdiga miljön.
+**Reproducerbarhet** — Om vi förstör hela miljön och
+startar om från noll får vi exakt samma resultat varje
+gång. Vi bevisar detta med automatiska tester.
 
 ---
 
-## 2. Teknisk översikt
+## 2. Verktyg vi använder
 
-Infrastrukturen består av sex virtuella maskiner som
-tillsammans bildar ett komplett webbsystem med
-lastbalansering, redundans och centraliserad
-säkerhetsövervakning.
+Här är en kort förklaring av varje verktyg och varför
+vi använder det.
 
-| Verktyg | Version | Syfte |
-|---------|---------|-------|
-| Vagrant | 2.x | Infrastructure-as-Code, VM-hantering |
-| VirtualBox | 7.x | Hypervisor |
-| Ansible | 2.17.x | Konfigurationshantering |
-| Ubuntu | 22.04 LTS | Operativsystem (alla VMs) |
-| Flask | 3.x | Python-webbapplikation |
-| Gunicorn | 21.x | WSGI-server |
-| nginx | 1.18.x | Reverse proxy, lastbalanserare |
-| PostgreSQL | 14.x | Relationsdatabas |
-| Wazuh | 4.x | SIEM/HIDS, säkerhetsövervakning |
+| Verktyg | Vad det gör |
+|---------|-------------|
+| Vagrant | Skapar och hanterar virtuella servrar automatiskt |
+| VirtualBox | Kör de virtuella servrarna på din dator |
+| Ansible | Konfigurerar servrarna automatiskt via SSH |
+| Ubuntu 22.04 | Operativsystem på alla servrar |
+| Flask | Webbapplikation skriven i Python |
+| Gunicorn | Kör Flask-applikationen som en tjänst |
+| nginx | Tar emot besökare och skickar dem vidare till rätt server |
+| PostgreSQL | Databas där besök sparas |
+| Wazuh | Övervakar alla servrar och varnar vid säkerhetsproblem |
 
 ---
 
-## 3. Systemarkitektur
+## 3. Så här ser systemet ut
 
-Systemet följer en 3-tier-arkitektur med tydlig separation
-mellan presentationslager, applikationslager och datalager.
-Kommunikation mellan lager är explicit tillåten — aldrig
-implicit. Detta begränsar en angripares rörelseförmåga
-avsevärt vid en eventuell kompromiss.
+Systemet är uppbyggt i tre lager. Det kallas
+3-tier-arkitektur. Varje lager pratar bara med
+lagret precis ovanför eller under sig.
 
 ```
-Windows-laptop (host)
+Din dator (Windows)
          |
-         | :8080 (port forwarding)
+         | Port 8080
          |
 +--------v-----------------------------------------------+
 |         Privat natverk 192.168.56.0/24                 |
 |                                                        |
 |  +---------------------------------------------------+ |
 |  |  control (.10)                                    | |
-|  |  Ansible control node -- ansible_connection=local | |
+|  |  Kör Ansible — konfigurerar alla andra servrar    | |
 |  +--------------------+------------------------------+ |
-|                       | SSH (krypterad kanal)          |
+|                       | SSH                            |
 |                       v                                |
 |  +---------------------------------------------------+ |
-|  |  nginx (.11) -- Reverse proxy, round-robin :80    | |
+|  |  nginx (.11)                                      | |
+|  |  Den enda servern som är nåbar utifrån            | |
+|  |  Skickar besökare till web1 eller web2            | |
 |  +------------------+--------------------------------+ |
-|                     | round-robin lastbalansering      |
+|                     | Växlar mellan web1 och web2      |
 |             +-------+-------+                          |
 |             v               v                          |
 |  +---------------+  +---------------+                  |
@@ -113,324 +109,305 @@ Windows-laptop (host)
 |          +---------------+                             |
 |                          v                             |
 |  +---------------------------------------------------+ |
-|  |  database (.14) -- PostgreSQL                     | |
-|  |  UFW: tillater enbart web1 + web2 pa port 5432    | |
+|  |  database (.14)                                   | |
+|  |  PostgreSQL — sparar alla besök                   | |
+|  |  Bara web1 och web2 får prata med databasen       | |
 |  +---------------------------------------------------+ |
 |                                                        |
 |  +---------------------------------------------------+ |
-|  |  monitor (.15) -- Wazuh Manager + Dashboard       | |
-|  |  SIEM/HIDS -- centraliserad sakerhetsovervakning  | |
+|  |  monitor (.15)                                    | |
+|  |  Wazuh — håller koll på säkerheten på alla servrar| |
 |  +---------------------------------------------------+ |
 +--------------------------------------------------------+
 ```
 
-**Presentationslager** — nginx på .11 är den enda
-komponenten med publik ingångspunkt. All inkommande
-trafik passerar genom nginx som distribuerar
-förfrågningar till applikationslagret via round-robin.
+**Lager 1 — nginx** tar emot alla besök utifrån.
+Det är den enda servern som syns från omvärlden.
 
-**Applikationslager** — web1 (.12) och web2 (.13) kör
-Flask-applikationen bakom Gunicorn. Båda noderna är
-identiskt konfigurerade men identifieras individuellt
-via variabeln `server_name`. Redundansen säkerställer
-att systemet fortsätter fungera även om en nod fallerar.
+**Lager 2 — web1 och web2** kör webbapplikationen.
+Båda servrarna gör samma sak men identifierar sig
+olika. Om en server slutar fungera tar den andra över.
 
-**Datalager** — PostgreSQL på .14 är strikt isolerad.
-UFW-regler tillåter enbart anslutningar från web1 och
-web2 på port 5432. Inga andra noder eller externa
-system kan nå databasen direkt.
-
-**Övervakningsnod** — Wazuh Manager på .15 samlar in
-säkerhetshändelser från samtliga noder i realtid.
+**Lager 3 — database** sparar data. Bara web1 och
+web2 får ansluta till databasen. Alla andra är
+blockerade.
 
 ---
 
-## 4. VM-specifikation
+## 4. Våra servrar
 
-| VM | IP-adress | Roll | RAM | Port forwarding |
-|---|---|---|---|---|
-| control | 192.168.56.10 | Ansible control node | 1024 MB | — |
-| nginx | 192.168.56.11 | Reverse proxy, lastbalanserare | 512 MB | :80 → host:8080 |
-| web1 | 192.168.56.12 | Flask + Gunicorn (Server 1) | 512 MB | — |
-| web2 | 192.168.56.13 | Flask + Gunicorn (Server 2) | 512 MB | — |
-| database | 192.168.56.14 | PostgreSQL | 512 MB | — |
-| monitor | 192.168.56.15 | Wazuh Manager + Dashboard | 2048 MB | — |
+| Server | IP-adress | Uppgift | RAM | Nåbar utifrån |
+|--------|-----------|---------|-----|---------------|
+| control | 192.168.56.10 | Kör Ansible | 1024 MB | Nej |
+| nginx | 192.168.56.11 | Tar emot besök, skickar vidare | 512 MB | Ja — port 8080 |
+| web1 | 192.168.56.12 | Webbapp (Server 1) | 512 MB | Nej |
+| web2 | 192.168.56.13 | Webbapp (Server 2) | 512 MB | Nej |
+| database | 192.168.56.14 | Sparar besök i PostgreSQL | 512 MB | Nej |
+| monitor | 192.168.56.15 | Wazuh säkerhetsövervakning | 2048 MB | Nej |
 | **Totalt** | | | **5120 MB** | |
 
 ---
 
-## 5. Mappstruktur
+## 5. Hur filerna är organiserade
 
 ```
 Secure-Infra-Lab/
 |
-+-- .gitattributes                # Enforces LF line endings
-+-- .gitignore                    # Excludes secrets + .vagrant/
++-- .gitattributes         # Ser till att radbrytningar är rätt
++-- .gitignore             # Hindrar lösenord från att hamna på GitHub
 +-- docs/
-|   +-- projektplan.md            # Detta dokument
-|   +-- log.md                    # Detaljerad projektlogg
+|   +-- projektplan.md     # Det här dokumentet
+|   +-- log.md             # Detaljerad logg över allt vi gjort
 |
 +-- vagrant/
-|   +-- Vagrantfile               # Definierar alla 6 VMs
-|   +-- secrets.yml               # GITIGNORERAD -- credentials
+|   +-- Vagrantfile        # Beskriver alla 6 servrar som kod
+|   +-- secrets.yml        # GITIGNORERAD — lösenord och hemligheter
 |
 +-- ansible/
-    +-- ansible.cfg               # Ansible configuration
-    +-- inventory.ini             # Server inventory
-    +-- site.yml                  # Master playbook
+    +-- ansible.cfg        # Inställningar för Ansible
+    +-- inventory.ini      # Lista på alla servrar
+    +-- site.yml           # Huvudplanen — vad som installeras var
     |
     +-- vars/
-    |   +-- vars.yml              # Shared variables (IPs, ports)
+    |   +-- vars.yml       # Gemensamma variabler som IP-adresser
     |
     +-- roles/
-        +-- security_hardening/   # SSH hardening, fail2ban, auditd
+        +-- security_hardening/   # Skyddar alla servrar
         |   +-- tasks/main.yml
         |   +-- handlers/main.yml
         |   +-- templates/sshd_config.j2
         |
-        +-- flask/                # Flask + Gunicorn + systemd
+        +-- flask/                # Installerar webbapplikationen
         |   +-- tasks/main.yml
         |   +-- handlers/main.yml
         |   +-- templates/flask.service.j2
         |   +-- files/app.py
         |   +-- vars/main.yml
         |
-        +-- nginx/                # Reverse proxy, load balancer
+        +-- nginx/                # Konfigurerar lastbalanseraren
         |   +-- tasks/main.yml
         |   +-- handlers/main.yml
         |   +-- templates/nginx.conf.j2
         |
-        +-- database/             # PostgreSQL + UFW
+        +-- database/             # Installerar databasen
         |   +-- tasks/main.yml
         |   +-- handlers/main.yml
         |   +-- templates/schema.sql.j2
         |
-        +-- wazuh_agent/          # Wazuh SIEM agent
+        +-- wazuh_agent/          # Installerar säkerhetsövervakning
             +-- tasks/main.yml
 ```
 
 ---
 
-## 6. Trafikflöde
+## 6. Vad händer när någon besöker sidan
 
-Sekvensen nedan beskriver en komplett förfrågningscykel
-från klientens webbläsare till databasen och tillbaka:
+När du öppnar `http://localhost:8080/visit` i din
+webbläsare händer det här i bakgrunden:
 
 ```
-1. Klient            -->  http://localhost:8080/visit
-2. Port forwarding   -->  nginx:80
-3. nginx round-robin -->  web1:5000 ELLER web2:5000
-4. Flask             -->  INSERT + SELECT mot database:5432
-5. PostgreSQL        -->  Returnerar senaste 5 besök
-6. Flask             -->  Bygger HTTP-svar med server_name
-7. Svar              -->  Tillbaka till klientens webbläsare
+Steg 1: Din webbläsare skickar en förfrågan till port 8080
+Steg 2: Vagrant skickar förfrågan vidare till nginx port 80
+Steg 3: nginx väljer web1 eller web2 — de turas om
+Steg 4: Den valda servern kör Flask-koden
+Steg 5: Flask sparar besöket i databasen
+Steg 6: Flask hämtar de 5 senaste besöken från databasen
+Steg 7: Svaret skickas tillbaka till din webbläsare
 ```
 
-Växlingen mellan web1 och web2 i steg 3 är synlig för
-slutanvändaren — svaret visar antingen "Server 1" eller
-"Server 2". Detta är ett konkret bevis på att
-lastbalanseringen fungerar korrekt.
+Det du ser på sidan visar om det var "Server 1" eller
+"Server 2" som svarade. Nästa gång du laddar om sidan
+byter nginx till den andra servern. Det är så
+lastbalansering fungerar.
 
 ---
 
-## 7. Säkerhetsstrategi
+## 7. Hur vi skyddar systemet
 
-Systemet implementerar Defense-in-Depth — en
-säkerhetsstrategi där flera oberoende skyddslager
-samverkar. Om ett lager kringgås begränsar nästa lager
-skadan. Varje lager är implementerat som kod och
-tillämpas automatiskt vid varje driftsättning.
+Vi använder en strategi som kallas Defense-in-Depth.
+Det betyder att vi har flera skyddslager. Om ett lager
+bryts igenom finns nästa lager kvar. Det är som att ha
+både lås, larm och grannsamverkan hemma.
 
-### Lager 1 — Nätverkssegmentering
+### Skydd 1 — Bara nginx syns utifrån
 
-Endast nginx exponeras mot omvärlden via port forwarding.
-web1, web2, database och monitor saknar helt publika
-ingångspunkter. En angripare som identifierar
-systemet utifrån ser enbart nginx.
+Bara nginx har en publik ingång via port 8080.
+Alla andra servrar är osynliga utifrån. En angripare
+som hittar systemet ser bara nginx — ingenting annat.
 
-### Lager 2 — Brandvägg (UFW)
+### Skydd 2 — Brandvägg på databasen
 
-UFW på database-noden tillåter inkommande TCP-trafik
-på port 5432 enbart från 192.168.56.12 (web1) och
-192.168.56.13 (web2). Samtliga övriga anslutningar
-blockeras.
+Databasen har strikta brandväggsregler. Bara web1
+och web2 får ansluta på port 5432. Alla andra
+anslutningar blockeras direkt.
 
-`listen_addresses` i PostgreSQL konfigureras med
-explicita IP-adresser — aldrig med wildcard `'*'`.
-Detta är ett medvetet designval som ger ett extra
-skyddslager även om brandväggsreglerna kringgås.
+Vi sätter också `listen_addresses` i PostgreSQL till
+specifika IP-adresser istället för `*` (alla). Det
+ger ett extra skydd om brandväggsreglerna skulle
+kringgås.
 
-### Lager 3 — SSH-härdning
+### Skydd 3 — SSH-härdning på alla servrar
 
-Följande restriktioner tillämpas på samtliga noder
-via Ansible-rollen `security_hardening`:
+Dessa regler gäller på alla servrar:
 
-- `PermitRootLogin no` — direkt root-åtkomst via SSH förbjuden
-- `PasswordAuthentication no` — enbart SSH-nyckelautentisering
-- `MaxAuthTries 3` — maximalt tre autentiseringsförsök
-- `AllowUsers vagrant` — enbart definierade användare tillåts
-- `ClientAliveInterval 300` — inaktiva sessioner termineras
+- Ingen får logga in som root via SSH
+- Lösenordsinloggning är helt avstängd — bara SSH-nycklar fungerar
+- Max tre inloggningsförsök — sedan stängs anslutningen
+- Bara användaren `vagrant` får logga in
+- Inaktiva sessioner stängs av efter 5 minuter
 
-### Lager 4 — Intrångsprevention (fail2ban)
+### Skydd 4 — Automatisk blockering (fail2ban)
 
-fail2ban övervakar autentiseringsloggar i realtid och
-blockerar automatiskt IP-adresser som uppvisar mönster
-karakteristiska för brute-force-attacker mot SSH.
+fail2ban håller koll på inloggningsförsök. Om någon
+försöker logga in för många gånger på kort tid
+blockeras den IP-adressen automatiskt.
 
-### Lager 5 — Revision och övervakning (auditd + Wazuh)
+### Skydd 5 — Loggning och övervakning (auditd + Wazuh)
 
-auditd loggar systemhändelser lokalt på varje nod —
-inloggningar, filmodifieringar, privilegieeskaleringar
-och processexekveringar. Wazuh-agenter på samtliga
-noder vidarebefordrar dessa händelser till Wazuh Manager
-på monitor (.15) för centraliserad analys och
-realtidsvarning.
+auditd loggar allt som händer på varje server —
+vem loggade in, vilka filer ändrades, vilka kommandon
+kördes. Wazuh samlar in dessa loggar från alla servrar
+och visar dem på ett ställe. Om något misstänkt händer
+syns det direkt.
 
 ---
 
-## 8. Ansible-roller
+## 8. Vad varje Ansible-roll gör
 
-### security_hardening — samtliga noder
+### security_hardening — körs på alla servrar
 
-Etablerar en konsekvent säkerhetsbaslinje på alla sex
-noder. Körs alltid först i site.yml för att säkerställa
-att grundläggande härdning är på plats innan
-applikationstjänster installeras.
+Den här rollen är den första som körs. Den ser till
+att alla servrar är grundskyddade innan något annat
+installeras. Den installerar fail2ban och auditd,
+och distribuerar en härdad SSH-konfiguration.
 
-Dokumentation: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/
+Dokumentation: https://docs.ansible.com/ansible/latest/
 
-### database — database-noden
+### database — körs på database-servern
 
-Installerar och konfigurerar PostgreSQL. Skapar
-applikationsanvändare med minsta möjliga privilegium.
-Tillämpar UFW-regler och konfigurerar `listen_addresses`
-med explicita IP-adresser. Skapar visits-tabellen via
-`schema.sql.j2`.
+Installerar PostgreSQL och skapar databasen och
+tabellen som Flask-applikationen använder. Sätter
+upp brandväggsregler så att bara web1 och web2 får
+ansluta.
 
 Dokumentation: https://www.postgresql.org/docs/
 
-### flask — web1 och web2
+### flask — körs på web1 och web2
 
-En gemensam roll hanterar båda webservrarna.
-Konfigurationsskillnaden — `server_name` — injiceras
-som en Ansible-variabel. Installerar Flask och
-Gunicorn, distribuerar `app.py` och registrerar
-en systemd-tjänst som startar om applikationen
-automatiskt vid krasch.
+Installerar Flask och Gunicorn. Kopierar
+applikationskoden till servern. Skapar en systemd-tjänst
+som automatiskt startar om applikationen om den kraschar.
+
+Samma roll används för båda servrarna. Den enda
+skillnaden är variabeln `server_name` — web1 får
+"Server 1" och web2 får "Server 2".
 
 Dokumentation: https://flask.palletsprojects.com/
 
-### nginx — nginx-noden
+### nginx — körs på nginx-servern
 
-Konfigurerar nginx som reverse proxy med round-robin
-lastbalansering mot web1 och web2. Distribuerar
-`nginx.conf.j2` med upstream-block och proxy-headers.
+Konfigurerar nginx som lastbalanserare. Skapar en
+konfigurationsfil som skickar förfrågningar till
+web1 och web2 i turordning (round-robin).
 
 Dokumentation: https://nginx.org/en/docs/
 
-### wazuh_agent — samtliga noder (ej monitor)
+### wazuh_agent — körs på alla servrar utom monitor
 
-Installerar och registrerar Wazuh-agenten på alla
-fem applikationsnoder. Agenten rapporterar
-säkerhetshändelser till Wazuh Manager på monitor (.15).
+Installerar Wazuh-agenten som skickar säkerhetshändelser
+till Wazuh Manager på monitor-servern.
 
 Dokumentation: https://documentation.wazuh.com/
 
 ---
 
-## 9. Fasplanering
+## 9. Arbetsplan
 
-| Fas | Leverabel |
-|-----|-----------|
-| Fas 1 | Vagrantfile — sex reproducerbara VMs |
-| Fas 2 | Ansible-konfiguration (ansible.cfg, inventory.ini, site.yml) |
-| Fas 3 | security_hardening-rollen — SSH, fail2ban, auditd |
-| Fas 4 | database-rollen — PostgreSQL, UFW, schema |
-| Fas 5 | flask-rollen — Flask, Gunicorn, systemd |
-| Fas 6 | nginx-rollen — reverse proxy, lastbalansering |
-| Fas 7 | wazuh_agent-rollen — SIEM-integration |
-| Fas 8 | Automatiserade verifieringsskript (verify.sh + verify_host.ps1) |
+| Fas | Vad vi gör |
+|-----|------------|
+| Fas 1 | Vagrantfile — skapa och starta 6 servrar |
+| Fas 2 | Ansible-konfiguration — inventory, playbook, variabler |
+| Fas 3 | security_hardening — skydda alla servrar |
+| Fas 4 | database — installera och konfigurera PostgreSQL |
+| Fas 5 | flask — installera webbapplikationen på web1 och web2 |
+| Fas 6 | nginx — konfigurera lastbalanseraren |
+| Fas 7 | wazuh_agent — sätta upp säkerhetsövervakning |
+| Fas 8 | Verifieringsskript — automatiska tester |
 | Fas 9 | Rapport och presentation |
 
 ---
 
-## 10. Designkrav
-
-Följande krav styr samtliga arkitektur- och
-implementationsbeslut i projektet:
+## 10. Krav vi ställer på systemet
 
 **Reproducerbarhet** — Kommandot
 `vagrant destroy -f && vagrant up && ansible-playbook site.yml`
-skall producera en identisk, fullt fungerande miljö
-vid varje körning — utan manuella ingrepp.
+ska ge exakt samma fungerande miljö varje gång.
+Inga manuella ingrepp får behövas.
 
-**Idempotens** — Ansible-playbooken skall kunna köras
-upprepade gånger utan oönskade sidoeffekter. En andra
-körning mot en redan konfigurerad miljö skall resultera
-i `changed=0` på samtliga noder.
+**Idempotens** — Det ska gå att köra Ansible-playbooken
+flera gånger utan att något går sönder. Om vi kör den
+en andra gång mot en redan konfigurerad miljö ska
+resultatet visa `changed=0` — ingenting ändrades
+eftersom allt redan var rätt.
 
-**Minsta privilegium** — Varje komponent tilldelas
-exakt de rättigheter som krävs för sin funktion.
-Databasanvändaren är begränsad till SELECT och INSERT
-på visits-tabellen. Inga komponenter körs som root.
+**Minsta privilegium** — Varje del av systemet får
+bara de rättigheter den faktiskt behöver. Flask-
+applikationen får till exempel bara läsa och skriva
+till visits-tabellen — ingenting annat.
 
-**Explicit nätverksåtkomst** — Kommunikation mellan
-lager tillåts explicit via UFW-regler och PostgreSQL
-`listen_addresses`. Inga implicita nätverkstillstånd
-accepteras.
+**Tydliga nätverksgränser** — Trafik mellan servrarna
+är alltid explicit tillåten via brandväggsregler.
+Inget är öppet av misstag.
 
-**Spårbarhet** — Samtliga designbeslut dokumenteras
-med motivering i `docs/log.md`. En ny teammedlem
-eller teknisk granskare skall kunna förstå varför
-varje beslut fattades — inte enbart hur det
-implementerades.
+**Spårbarhet** — Varje beslut vi fattar dokumenteras
+i `docs/log.md` med förklaring. Vem som helst ska
+kunna läsa loggen och förstå varför vi valde som vi
+valde.
 
-**Skalbarhet** — Arkitekturen möjliggör horisontell
-skalning av applikationslagret. Ytterligare webservrar
-kan läggas till genom att uppdatera nginx
-upstream-konfigurationen utan ändringar i övriga
-komponenter.
+**Skalbarhet** — Det ska vara enkelt att lägga till
+fler webbservrar. Man uppdaterar bara nginx-konfigurationen
+— ingenting annat behöver ändras.
 
 ---
 
-## 11. Förväntat resultat
+## 11. Vad vi förväntar oss när allt är klart
 
-### Systembeskrivning
+### Hur systemet ska fungera
 
-När samtliga faser är genomförda kommer infrastrukturen
-att utgöra ett komplett, automatiserat och
-säkerhetshärdat webbsystem. En klient som ansluter till
-`http://localhost:8080/visit` tar emot ett svar från
-antingen "Server 1" eller "Server 2" — beroende på
-vilken nod nginx dirigerar förfrågan till. Varje besök
-registreras i databasen och de fem senaste besöken
-presenteras i svaret. Systemet är fullständigt
-automatiserat och reproducerbart från noll med ett
-enda kommando.
+När alla faser är klara ska det här fungera:
 
-### Teknisk verifieringslista
+En besökare går till `http://localhost:8080/visit`.
+Sidan visar antingen "Server 1" eller "Server 2"
+beroende på vilken server nginx valde. De fem senaste
+besöken visas på sidan. Laddar man om sidan byter
+nginx till den andra servern.
 
-Samtliga tester verifieras automatiskt av
-`verify.sh` (Linux) och `verify_host.ps1` (Windows):
+Hela miljön byggs upp automatiskt med ett kommando
+och testas med automatiska skript.
 
-| # | Test | Förväntat resultat |
-|---|------|--------------------|
+### Automatiska tester
+
+Dessa tester körs automatiskt av `verify.sh` (Linux)
+och `verify_host.ps1` (Windows):
+
+| # | Vad vi testar | Förväntat svar |
+|---|---------------|----------------|
 | 1 | nginx svarar på port 8080 | HTTP 200 OK |
-| 2 | /visit returnerar "Server 1" eller "Server 2" | Applikationslagret nås |
-| 3 | Upprepade anrop till /visit växlar mellan Server 1 och Server 2 | Round-robin bekräftad |
-| 4 | web1 når database på port 5432 | Anslutning etablerad |
-| 5 | web2 når database på port 5432 | Anslutning etablerad |
-| 6 | Extern klient når ej database på port 5432 | Anslutning nekad (UFW) |
-| 7 | flask-tjänsten körs på web1 | active (running) |
-| 8 | flask-tjänsten körs på web2 | active (running) |
-| 9 | fail2ban körs på samtliga noder | active (running) |
-| 10 | auditd körs på samtliga noder | active (running) |
-| 11 | PasswordAuthentication inaktiverad | no |
-| 12 | PermitRootLogin inaktiverad | no |
-| 13 | Wazuh-agent aktiv på samtliga noder | connected |
-| 14 | PostgreSQL lyssnar ej på 0.0.0.0 | Enbart web1 + web2 IPs |
+| 2 | /visit visar "Server 1" eller "Server 2" | Webbappen fungerar |
+| 3 | Upprepade besök växlar mellan Server 1 och Server 2 | Lastbalansering fungerar |
+| 4 | web1 når databasen på port 5432 | Anslutning OK |
+| 5 | web2 når databasen på port 5432 | Anslutning OK |
+| 6 | En extern dator når inte databasen direkt | Blockerad av UFW |
+| 7 | Flask-tjänsten körs på web1 | active (running) |
+| 8 | Flask-tjänsten körs på web2 | active (running) |
+| 9 | fail2ban körs på alla servrar | active (running) |
+| 10 | auditd körs på alla servrar | active (running) |
+| 11 | Lösenordsinloggning är avstängd | no |
+| 12 | Root-inloggning via SSH är avstängd | no |
+| 13 | Wazuh-agenten är aktiv på alla servrar | connected |
+| 14 | PostgreSQL lyssnar inte på alla IP-adresser | Bara web1 + web2 |
 
 ---
 
-*Detaljerad dokumentation av implementationsarbetet
+*Den detaljerade loggen över hur vi byggde allt
 finns i `docs/log.md`.*
