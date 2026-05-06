@@ -15,7 +15,7 @@ med — även den som inte jobbat med projektet tidigare.
 ---
 
 ## Fas 1 — Vagrantfile och VM-uppstart
-**Datum:** 2026-05-02  
+**Datum:** 2026-05-02
 **Git-commits:**
 - `Initial structure: Vagrantfile for 6 VMs`
 - `Add .gitignore and fix control provisioner: install Ansible via pip instead of apt`
@@ -40,6 +40,19 @@ kontrollerade att alla var uppe och körde.
 
 ---
 
+### Varför detta steg är viktigt
+
+Vagrantfilen är grunden för hela projektet. Utan den
+måste varje server skapas och konfigureras manuellt —
+ett tidskrävande arbete som lätt leder till
+inkonsistenser. Med Vagrantfilen beskrivs alla sex
+servrar som kod och kan återskapas identiskt med
+ett enda kommando. Det är principen bakom
+Infrastructure-as-Code som används i alla moderna
+driftmiljöer.
+
+---
+
 ### Körda kommandon
 
 #### PowerShell — Windows-värddatorn
@@ -51,7 +64,7 @@ kontrollerade att alla var uppe och körde.
 PS C:\> mkdir E:\Secure-Infra-Lab
 PS C:\> cd E:\Secure-Infra-Lab
 ```
-Förväntat output: Mappen skapas utan felmeddelanden.  
+Förväntat output: Mappen skapas utan felmeddelanden.
 Vad vi fick: Mappen skapades korrekt ✅
 
 ```powershell
@@ -60,26 +73,29 @@ Vad vi fick: Mappen skapades korrekt ✅
 # gå tillbaka till tidigare versioner
 PS E:\Secure-Infra-Lab> git init
 ```
-Förväntat output: `Initialized empty Git repository in E:/Secure-Infra-Lab/.git/`  
+Förväntat output: `Initialized empty Git repository in E:/Secure-Infra-Lab/.git/`
 Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
 # Skapa hela mappstrukturen i ett kommando
 # Varför: Bättre att ha strukturen klar från början
-# än att skapa mappar efterhand
+# än att skapa mappar efterhand — ger en tydlig
+# överblick över projektets organisation direkt
 PS E:\Secure-Infra-Lab> mkdir vagrant, ansible\roles\security_hardening, `
       ansible\roles\flask, ansible\roles\nginx, `
       ansible\roles\database, ansible\roles\wazuh_agent, `
       ansible\vars, docs
 ```
-Förväntat output: Inga felmeddelanden.  
+Förväntat output: Inga felmeddelanden.
 Vad vi fick: Alla mappar skapades korrekt ✅
 
 ```powershell
 # Öppna Vagrantfilen i VS Code och klistra in innehållet
-PS E:\Secure-Infra-Lab> code E:\Secure-Infra-Lab\vagrant\Vagrantfile
+# Varför VS Code: Säkrare och mer pålitligt än att
+# skriva direkt i terminalen för längre filer
+PS E:\Secure-Infra-Lab> code vagrant\Vagrantfile
 ```
-Förväntat output: VS Code öppnar en tom fil.  
+Förväntat output: VS Code öppnar en tom fil.
 Vad vi fick: Filen öppnades korrekt ✅
 
 ```powershell
@@ -99,35 +115,35 @@ Vad vi fick: Exakt det förväntade ✅
 PS E:\Secure-Infra-Lab> git remote add origin https://github.com/SSM-debug/Secure-Infra-Lab.git
 PS E:\Secure-Infra-Lab> git push -u origin main
 ```
-Förväntat output: `Branch 'main' set up to track remote branch 'main' from 'origin'.`  
+Förväntat output: `Branch 'main' set up to track remote branch 'main' from 'origin'.`
 Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
-# Gå in i vagrant-mappen — Vagrantfilen måste ligga här
-# Varför: vagrant up letar alltid efter Vagrantfile
-# i den aktuella mappen
-PS E:\Secure-Infra-Lab> cd E:\Secure-Infra-Lab\vagrant
+# Gå in i vagrant-mappen — vagrant up kräver att
+# Vagrantfilen finns i aktuell mapp
+PS E:\Secure-Infra-Lab> cd vagrant
 
-# Starta control-servern först för att testa
+# Starta control-servern först
 # Varför en i taget: Om något går fel vet vi
 # exakt vilken server som krånglar
 PS E:\Secure-Infra-Lab\vagrant> vagrant up control
 ```
-Förväntat output på slutet: `=== control: ready ===`  
-Vad vi fick: `ansible 2.10.8` — för gammal version ❌  
-Fel vi fick: Ansible 2.10.8 från apt är föråldrad och
-saknar stöd för moduler vi behöver.  
+Förväntat output på slutet: `=== control: ready ===`
+Vad vi fick: `ansible 2.10.8` — för gammal version ❌
+Fel vi fick: Ansible 2.10.8 från apt är föråldrad
+och saknar stöd för moduler vi behöver.
 Hur vi löste det: Uppdaterade Vagrantfilens
-provisioner-skript för control att installera Ansible
-via `pip3 install ansible` istället för `apt-get install ansible`.
+provisioner-skript för control att installera
+Ansible via `pip3 install ansible` istället för
+`apt-get install ansible`.
 
 ```powershell
 # Starta om control med den uppdaterade Vagrantfilen
-# Varför --provision: Kör provisioner-skriptet igen
-# även om servern redan startats en gång
+# --provision: Tvingar provisioner-skriptet att köra
+# igen även om servern redan startats tidigare
 PS E:\Secure-Infra-Lab\vagrant> vagrant reload --provision control
 ```
-Förväntat output på slutet: `=== control: ready ===`  
+Förväntat output på slutet: `=== control: ready ===`
 Vad vi fick: `ansible [core 2.17.14]` ✅
 
 ```powershell
@@ -138,7 +154,7 @@ PS E:\Secure-Infra-Lab\vagrant> vagrant up web2
 PS E:\Secure-Infra-Lab\vagrant> vagrant up database
 PS E:\Secure-Infra-Lab\vagrant> vagrant up monitor
 ```
-Förväntat output för varje server: `=== [servernamn]: ready ===`  
+Förväntat output för varje server: `=== [servernamn]: ready ===`
 Vad vi fick: Alla servrar startade korrekt ✅
 
 ```powershell
@@ -158,55 +174,81 @@ Vad vi fick: Exakt det förväntade ✅
 
 ```powershell
 # Gå tillbaka till projektmappen för Git-kommandon
-PS E:\Secure-Infra-Lab\vagrant> cd E:\Secure-Infra-Lab
+PS E:\Secure-Infra-Lab\vagrant> cd ..
 
 # Fixa .gitignore — hindra känsliga filer från GitHub
+# Varför: vagrant/.vagrant/ innehåller SSH-nycklar
+# och intern Vagrant-metadata som aldrig ska publiceras
 PS E:\Secure-Infra-Lab> git rm -r --cached vagrant/.vagrant/
 PS E:\Secure-Infra-Lab> git add .gitignore vagrant/Vagrantfile
 PS E:\Secure-Infra-Lab> git commit -m "Add .gitignore and fix control provisioner: install Ansible via pip instead of apt"
 PS E:\Secure-Infra-Lab> git push
 ```
-Förväntat output: Commit bekräftas utan felmeddelanden.  
+Förväntat output: Commit bekräftas utan felmeddelanden.
 Vad vi fick: Exakt det förväntade ✅
 
 ---
 
 ### Konfigurationsfiler
 
-📄 `vagrant/Vagrantfile`  
+📄 `vagrant/Vagrantfile`
 **Vad den gör:** Beskriver alla sex servrar som kod —
-IP-adresser, RAM, CPU och vad som ska installeras
-när servern startas.  
+IP-adresser, RAM, CPU och provisionerings-skript.
+Vagrant läser filen och skapar infrastrukturen
+automatiskt.
 **Varför den finns:** Med den här filen kan vi köra
-`vagrant up` och få exakt samma sex servrar varje gång,
-på vilken dator som helst.  
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/vagrant/Vagrantfile  
+`vagrant up` och få exakt samma sex servrar varje
+gång — på vilken dator som helst.
+**Hur vi skrev den:** Vi identifierade varje servers
+krav (IP, RAM, roll) och använde Vagrants officiella
+dokumentation för syntax och provisionering.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/vagrant/Vagrantfile
 **Officiell dokumentation:** https://developer.hashicorp.com/vagrant/docs/vagrantfile
 
-📄 `.gitignore`  
+📄 `.gitignore`
 **Vad den gör:** Talar om för Git vilka filer som ska
-ignoreras. Vi ignorerar `vagrant/.vagrant/` (innehåller
-SSH-nycklar) och `vagrant/secrets.yml` (innehåller lösenord).  
+ignoreras. Vi ignorerar `vagrant/.vagrant/`
+(SSH-nycklar och Vagrant-metadata) och
+`vagrant/secrets.yml` (databasuppgifter).
 **Varför den finns:** Om SSH-nycklar eller lösenord
-hamnar på GitHub är de komprometterade för alltid —
-även om man tar bort dem efteråt finns de kvar i
-Git-historiken.  
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/.gitignore  
+publiceras till GitHub är de komprometterade för
+alltid — även om man tar bort dem efteråt finns
+de kvar i Git-historiken.
+**Hur vi skrev den:** Vi identifierade alla filer
+som innehåller känslig information och lade till
+dem i .gitignore.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/.gitignore
 **Officiell dokumentation:** https://git-scm.com/docs/gitignore
 
 ---
 
 ### Problem och lösningar
 
-**Problem — Ansible 2.10.8 för gammal**  
-**Felmeddelande:** `ansible 2.10.8`  
-**Vad som hände:** Ubuntu 22.04 installerar Ansible 2.10.8
-via apt. Det är en version från 2021 som saknar stöd
-för moduler vi behöver.  
-**Lösning:** Vi ändrade provisioner-skriptet i Vagrantfilen
-till att köra `pip3 install ansible` istället. Det
-installerar senaste versionen direkt från PyPI.  
+**Problem 1 — Ansible 2.10.8 för gammal**
+**Felmeddelande:** `ansible 2.10.8`
+**Vad som hände:** Ubuntu 22.04 installerar Ansible
+2.10.8 via apt. Det är en version från 2021 som
+saknar stöd för moduler vi behöver.
+**Lösning:** Uppdaterade provisioner-skriptet i
+Vagrantfilen till `pip3 install ansible`. Det
+installerar senaste versionen direkt från PyPI.
 **Resultat efter fix:** `ansible [core 2.17.14]` ✅
+
+**Problem 2 — Vagrant interna filer spårades av Git**
+**Felmeddelande:** Git staging visade `vagrant/.vagrant/`
+med SSH-nycklar på väg till GitHub.
+**Vad som hände:** Ingen `.gitignore` fanns i projektet.
+Git spårade alla filer inklusive Vagrants interna
+SSH-nycklar.
+**Lösning:** Skapade `.gitignore` och körde
+`git rm -r --cached vagrant/.vagrant/` för att
+avregistrera redan spårade filer.
+
+**Problem 3 — Felstavat kommando**
+**Felmeddelande:** `The machine with the name '..provision' was not found`
+**Vad som hände:** `..provision` skrevs istället
+för `--provision`.
+**Lösning:** `vagrant reload --provision control`
 
 ---
 
@@ -214,91 +256,116 @@ installerar senaste versionen direkt från PyPI.
 
 **Koncept: Infrastructure-as-Code (IaC)**
 
-Traditionellt konfigurerar man servrar för hand — man
-loggar in, klickar runt och installerar saker manuellt.
-Det tar tid och det blir lätt fel. Nästa gång man gör
-samma sak blir resultatet lite annorlunda.
+Traditionellt konfigureras servrar manuellt — man
+loggar in, installerar paket och justerar inställningar
+för hand. Det tar tid, det blir lätt fel och nästa
+gång man gör samma sak blir resultatet lite annorlunda.
 
-Infrastructure-as-Code löser det här. Istället för att
-klicka beskriver man serverna i en textfil. Kör man
-filen får man exakt samma resultat varje gång.
+Infrastructure-as-Code löser det här. Istället för
+manuellt arbete beskrivs infrastrukturen i
+versionshanterade textfiler. Kör man filerna får man
+exakt samma resultat varje gång.
 
 I det här projektet beskriver Vagrantfilen alla sex
 servrar. `vagrant up` skapar dem automatiskt. Om vi
-förstör allt och kör `vagrant up` igen får vi identiska
-servrar på några minuter.
+förstör allt och kör `vagrant up` igen får vi
+identiska servrar på några minuter.
 
-Samma princip används i stora företag med verktyg som
-Terraform och AWS CloudFormation — tusentals servrar
-i molnet skapas och förstörs automatiskt från
-versionshanterade textfiler.
+Samma princip används i stora driftmiljöer med
+verktyg som Terraform och AWS CloudFormation —
+hundratals servrar skapas och förstörs automatiskt
+från versionshanterade konfigurationsfiler.
 
-**Officiell dokumentation:**  
-- Vagrant: https://developer.hashicorp.com/vagrant/docs  
+**Officiell dokumentation:**
+- Vagrant: https://developer.hashicorp.com/vagrant/docs
 - VirtualBox: https://www.virtualbox.org/manual/
 
 ---
 
+---
+
 ## Fas 2 — Ansible-konfiguration
-**Datum:** 2026-05-02  
+**Datum:** 2026-05-02
 **Git-commit:** `Add Ansible config: ansible.cfg, inventory.ini, site.yml`
 
 ### Vad vi gjorde
 
-Vi skapade de tre filerna som Ansible behöver för att
-fungera. `ansible.cfg` är inställningsfilen.
-`inventory.ini` listar alla servrar. `site.yml` är
-huvudplanen som bestämmer vad som installeras var och
-i vilken ordning.
+Vi skapade de tre kärnfilerna som Ansible behöver
+för att fungera. `ansible.cfg` är den globala
+inställningsfilen. `inventory.ini` listar alla
+servrar. `site.yml` är huvudplanen som bestämmer
+vad som installeras var och i vilken ordning.
 
-Ordningen i `site.yml` är viktig. Databasen måste
-konfigureras innan webbservrarna startar, annars
-försöker Flask ansluta till en databas som inte finns
-än.
+Ordningen i `site.yml` är kritisk. Databasen måste
+konfigureras innan webbservrarna startar — annars
+försöker Flask ansluta till en databas som inte
+finns än och tjänsten kraschar.
+
+---
+
+### Varför detta steg är viktigt
+
+Utan dessa tre filer kan Ansible inte fungera alls.
+`ansible.cfg` talar om för Ansible var den ska leta
+efter servrar och hur den ska bete sig. `inventory.ini`
+är Ansibles adressbok — utan den vet Ansible inte
+att våra servrar existerar. `site.yml` är receptet
+som bestämmer vad som lagas och i vilken ordning.
 
 ---
 
 ### Körda kommandon
 
-#### PowerShell — Windows-värddatorn
+#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
 
 ```powershell
 # Skapa ansible.cfg i VS Code
 # Varför: Utan den måste vi ange alla inställningar
-# som flaggor varje gång vi kör Ansible
-PS E:\Secure-Infra-Lab> code E:\Secure-Infra-Lab\ansible\ansible.cfg
+# som flaggor varje gång vi kör Ansible — opraktiskt
+# och lätt att glömma
+PS E:\Secure-Infra-Lab> code ansible\ansible.cfg
 ```
-Förväntat output: VS Code öppnar en tom fil.  
+Förväntat output: VS Code öppnar en tom fil.
 Vad vi fick: Filen öppnades korrekt ✅
 
 ```powershell
 # Skapa inventory.ini i VS Code
-# Varför: Ansible måste veta vilka servrar som finns
-# och hur man når dem
-PS E:\Secure-Infra-Lab> code E:\Secure-Infra-Lab\ansible\inventory.ini
+# Varför: Ansible måste veta vilka servrar som finns,
+# hur man når dem och vilket operativsystem de kör
+PS E:\Secure-Infra-Lab> code ansible\inventory.ini
 ```
-Förväntat output: VS Code öppnar en tom fil.  
+Förväntat output: VS Code öppnar en tom fil.
 Vad vi fick: Filen öppnades korrekt ✅
 
 ```powershell
 # Skapa site.yml i VS Code
-# Varför: Huvudplanen som bestämmer vad som
-# installeras på vilken server och i vilken ordning
-PS E:\Secure-Infra-Lab> code E:\Secure-Infra-Lab\ansible\site.yml
+# Varför: Huvudplanen som bestämmer vilken roll som
+# körs på vilken server och i vilken ordning
+PS E:\Secure-Infra-Lab> code ansible\site.yml
 ```
-Förväntat output: VS Code öppnar en tom fil.  
+Förväntat output: VS Code öppnar en tom fil.
 Vad vi fick: Filen öppnades korrekt ✅
 
 ```powershell
-# Publicera alla tre filer till GitHub
-PS E:\Secure-Infra-Lab> git add ansible/ansible.cfg ansible/inventory.ini ansible/site.yml
+# Skapa vars/vars.yml i VS Code
+# Varför: Centraliserade variabler — IP-adresser
+# och portnummer definieras på ett ställe och
+# används av alla roller
+PS E:\Secure-Infra-Lab> code ansible\vars\vars.yml
+```
+Förväntat output: VS Code öppnar en tom fil.
+Vad vi fick: Filen öppnades korrekt ✅
+
+```powershell
+# Publicera alla filer till GitHub
+PS E:\Secure-Infra-Lab> git add ansible/ansible.cfg ansible/inventory.ini ansible/site.yml ansible/vars/vars.yml
 PS E:\Secure-Infra-Lab> git commit -m "Add Ansible config: ansible.cfg, inventory.ini, site.yml"
 PS E:\Secure-Infra-Lab> git push
 ```
 Förväntat output:
 ```
 [main xxxxxxx] Add Ansible config: ansible.cfg, inventory.ini, site.yml
- 3 files changed, X insertions(+)
+ 4 files changed, X insertions(+)
 ```
 Vad vi fick: Exakt det förväntade ✅
 
@@ -306,43 +373,59 @@ Vad vi fick: Exakt det förväntade ✅
 
 ### Konfigurationsfiler
 
-📄 `ansible/ansible.cfg`  
-**Vad den gör:** Globala inställningar för Ansible.
-Talar om var inventory-filen finns, stänger av SSH
-host key-verifiering och tillåter tillfälliga filer
-som Ansible behöver.  
-**Varför den finns:** Utan den måste vi skriva långa
-flaggor varje gång vi kör ett Ansible-kommando.  
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/ansible.cfg  
+📄 `ansible/ansible.cfg`
+**Vad den gör:** Global konfigurationsfil för Ansible.
+Anger sökväg till inventory-filen, inaktiverar SSH
+host key-verifiering och tillåter temporära filer
+som Ansible behöver vid privilegieeskalering.
+**Varför den finns:** Utan den måste alla inställningar
+anges som flaggor vid varje kommandokörning —
+`ansible-playbook -i inventory.ini --ssh-extra-args=...`
+**Hur vi skrev den:** Vi identifierade de tre
+inställningar som alltid behövs i vår miljö och
+konsulterade officiell dokumentation för syntax.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/ansible.cfg
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/reference_appendices/config.html
 
-📄 `ansible/inventory.ini`  
+📄 `ansible/inventory.ini`
 **Vad den gör:** Listar alla sex servrar med
-IP-adresser, SSH-användare och nyckelfilssökvägar.
-Definierar också `[all:children]` för att undvika
-varningar om namnkonflikter.  
-**Varför den finns:** Ansible vet ingenting om våra
-servrar utan den här filen.  
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/inventory.ini  
+IP-adresser, SSH-användare, nyckelfilssökvägar
+och explicit Python-interpreter. Gruppnamnen
+har `_g`-suffix för att undvika namnkrockar
+mellan grupp och host.
+**Varför den finns:** Ansible kan inte kommunicera
+med servrarna utan denna fil — den är Ansibles
+register över hanterade noder.
+**Hur vi skrev den:** Vi listade varje server med
+dess IP-adress från Vagrantfilen och lade till
+de SSH-parametrar som Ansible behöver.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/inventory.ini
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html
 
-📄 `ansible/site.yml`  
-**Vad den gör:** Huvudplanen. Bestämmer vilken roll
+📄 `ansible/site.yml`
+**Vad den gör:** Huvudplanen — definierar vilken roll
 som körs på vilken server och i vilken ordning.
-Laddar variabler från `vars/vars.yml` och `secrets.yml`.  
-**Varför den finns:** Utan en tydlig körordning kan
-applikationen försöka ansluta till en databas som
-inte finns än.  
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/site.yml  
+Laddar variabler från `vars/vars.yml` och `secrets.yml`
+vid varje körning.
+**Varför den finns:** Utan en definierad körordning
+kan Flask försöka ansluta till en databas som ännu
+inte konfigurerats — vilket orsakar fel.
+**Hur vi skrev den:** Vi identifierade rätt körordning
+(database → web → nginx → monitor) och skapade
+ett play per servergrupp med rätt roll tilldelad.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/site.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_intro.html
 
-📄 `ansible/vars/vars.yml`  
-**Vad den gör:** Samlar IP-adresser och portnummer
-på ett ställe. Alla roller hämtar värden härifrån
-istället för att varje roll har sina egna kopior.  
+📄 `ansible/vars/vars.yml`
+**Vad den gör:** Centraliserad variabelfil med
+IP-adresser och portnummer som delas av alla roller.
 **Varför den finns:** Om vi byter IP-adress på en
-server behöver vi bara ändra på ett ställe.  
+server behöver vi bara ändra på ett ställe —
+inte i varje enskild roll.
+**Hur vi skrev den:** Vi samlade alla värden som
+används av flera roller på ett ställe.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/vars/vars.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html
 
 ---
 
@@ -358,27 +441,31 @@ Inga problem uppstod under den här fasen.
 
 Inventory-filen är som en adressbok för Ansible.
 Utan den vet Ansible inte att våra servrar existerar.
+Varje post i inventory-filen innehåller servernamn,
+IP-adress och hur Ansible ska ansluta.
 
 Körordningen i `site.yml` är lika viktig som att
-laga mat i rätt ordning. Du kokar pastan innan du
-häller på såsen — inte tvärtom. På samma sätt
-konfigurerar vi databasen innan webbservrarna,
-annars försöker Flask ansluta till något som inte
-finns än.
+utföra arbetsmoment i rätt följd. Databasen måste
+vara konfigurerad och igång innan webbservrarna
+startar — annars försöker Flask ansluta till något
+som inte finns än och tjänsten misslyckas med start.
 
 I stora produktionsmiljöer används dynamiska
 inventories som uppdateras automatiskt när nya
 servrar startas i molnet. Nya servrar registreras
-direkt utan att någon behöver uppdatera en fil manuellt.
+direkt utan att någon behöver uppdatera en fil
+manuellt.
 
-**Officiell dokumentation:**  
-- Ansible inventory: https://docs.ansible.com/ansible/latest/inventory_guide/  
+**Officiell dokumentation:**
+- Ansible inventory: https://docs.ansible.com/ansible/latest/inventory_guide/
 - Ansible playbooks: https://docs.ansible.com/ansible/latest/playbook_guide/
 
 ---
 
+---
+
 ## Fas 3 — security_hardening-rollen
-**Datum:** 2026-05-04  
+**Datum:** 2026-05-04
 **Git-commits:**
 - `Add security_hardening role: SSH hardening, fail2ban, auditd`
 - `Add vars/vars.yml with network and Flask variables`
@@ -394,67 +481,84 @@ distribuerar en härdad SSH-konfiguration, installerar
 fail2ban som blockerar inloggningsattacker och
 installerar auditd som loggar systemhändelser.
 
-Vi stötte på tre problem under den här fasen. Ansible
+Vi stötte på flera problem under fasen. Ansible
 kraschade för att rollerna för database, flask, nginx
 och wazuh_agent inte existerade än. Control-servern
 saknade SSH-nyckel för att nå de andra servrarna.
 Windows konverterade radbrytningar på fel sätt.
 Alla tre problem löste vi permanent.
 
+Vi lade också till `Defaults !requiretty` i sudoers
+via security_hardening-rollen. Det krävs för att
+Ansible pipelining ska fungera korrekt — vilket
+eliminerar world-readable tmp files-varningen.
+
 Slutresultat: `ansible-playbook site.yml` kördes mot
-alla sex servrar med `failed=0`. Vi körde sedan om
-playbooken och fick `changed=0` på alla servrar —
-bevis på att rollen är idempotent.
+alla sex servrar med `failed=0` och inga varningar.
+Idempotens bekräftad på andra körningen med
+`changed=0` på alla servrar.
+
+---
+
+### Varför detta steg är viktigt
+
+Security hardening är det första som körs på alla
+servrar — innan någon applikation installeras.
+Det säkerställer att varje server har en konsekvent
+säkerhetsbaslinje från dag ett. SSH-härdning,
+fail2ban och auditd är grundläggande skydd som
+krävs i alla seriösa driftmiljöer.
 
 ---
 
 ### Körda kommandon
 
-#### PowerShell — Windows-värddatorn
+#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
 
 ```powershell
 # Skapa mappstruktur för security_hardening-rollen
-# Varför: Ansible letar alltid efter tasks/, handlers/
-# och templates/ inuti en roll — strukturen måste stämma
+# Varför: Ansible kräver tasks/, handlers/ och
+# templates/ mappar inuti varje roll
 PS E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\tasks
 PS E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\handlers
 PS E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\templates
 ```
-Förväntat output: Inga felmeddelanden.  
+Förväntat output: Inga felmeddelanden.
 Vad vi fick: Mapparna skapades korrekt ✅
 
 ```powershell
-# Skapa rollfilerna i VS Code
+# Öppna rollfilerna i VS Code för redigering
 PS E:\Secure-Infra-Lab> code ansible\roles\security_hardening\tasks\main.yml
 PS E:\Secure-Infra-Lab> code ansible\roles\security_hardening\handlers\main.yml
 PS E:\Secure-Infra-Lab> code ansible\roles\security_hardening\templates\sshd_config.j2
 ```
-Förväntat output: VS Code öppnar varje fil.  
+Förväntat output: VS Code öppnar varje fil.
 Vad vi fick: Filerna öppnades korrekt ✅
 
 ```powershell
 # Skapa tomma platshållarfiler för roller som inte finns än
-# Varför: Ansible validerar ALLA roller i site.yml vid uppstart
-# — även roller vi inte kör just nu. Utan platshållare kraschar Ansible
+# Varför: Ansible validerar ALLA roller i site.yml
+# vid uppstart — även roller som inte körs just nu.
+# Utan platshållare kraschar Ansible direkt
 PS E:\Secure-Infra-Lab> foreach ($role in @("database", "flask", "nginx", "wazuh_agent")) {
     $path = "E:\Secure-Infra-Lab\ansible\roles\$role\tasks\main.yml"
     Set-Content -Path $path -Value "---`n# Placeholder — role not yet implemented"
     Write-Host "Created: $path"
 }
 ```
-Förväntat output: `Created: E:\...\[rollnamn]\tasks\main.yml` för varje roll.  
+Förväntat output: `Created: E:\...\[rollnamn]\tasks\main.yml` för varje roll.
 Vad vi fick: Alla fyra platshållarfiler skapades ✅
 
 ```powershell
-# Fixa radbrytningsproblem en gång för alla
-# Varför: Windows använder CRLF, Linux använder LF
-# Fel radbrytningar kan göra att Bash-skript och
-# YAML-filer inte fungerar på Linux-servrarna
+# Fixa radbrytningsproblem permanent
+# Varför: Windows använder CRLF (\r\n), Linux använder LF (\n)
+# CRLF i YAML- och Bash-filer kan orsaka tolkningsfel
+# på Linux-servrar
 PS E:\Secure-Infra-Lab> git config core.autocrlf false
 PS E:\Secure-Infra-Lab> git config core.eol lf
 PS E:\Secure-Infra-Lab> code .gitattributes
 ```
-Förväntat output: VS Code öppnar .gitattributes för redigering.  
+Förväntat output: VS Code öppnar .gitattributes för redigering.
 Vad vi fick: Filen öppnades korrekt ✅
 
 ```powershell
@@ -465,33 +569,55 @@ PS E:\Secure-Infra-Lab> git add .
 PS E:\Secure-Infra-Lab> git commit -m "Normalize line endings to LF across all files"
 PS E:\Secure-Infra-Lab> git push
 ```
-Förväntat output: Commit bekräftas utan CRLF-varningar.  
-Vad vi fick: Exakt det förväntade — inga fler CRLF-varningar ✅
+Förväntat output: Commit bekräftas utan CRLF-varningar.
+Vad vi fick: Inga fler CRLF-varningar ✅
 
 ```powershell
-# Hämta controls publika nyckel och spara i en variabel
-# Varför: Vi behöver nyckeln för att kopiera den
+# Hämta controls publika nyckel och spara i variabel
+# Varför: Vi behöver nyckeln för att distribuera den
 # till alla andra servrar
 PS E:\Secure-Infra-Lab\vagrant> $pubkey = vagrant ssh control -c "cat /home/vagrant/.ssh/id_rsa.pub"
 ```
-Förväntat output: Ingen synlig output — nyckeln sparas i variabeln.  
+Förväntat output: Ingen synlig output — nyckeln sparas i variabeln.
 Vad vi fick: Nyckeln hämtades korrekt ✅
 
 ```powershell
-# Kopiera controls publika nyckel till alla andra servrar
-# Varför: Ansible SSH:ar från control till alla servrar
-# Utan nyckeln i authorized_keys nekas åtkomst
+# Distribuera controls publika nyckel till alla servrar
+# Varför: Ansible SSH:ar från control till alla servrar.
+# Utan nyckeln i authorized_keys nekas åtkomst helt
 PS E:\Secure-Infra-Lab\vagrant> foreach ($vm in @("nginx", "web1", "web2", "database", "monitor")) {
     $port = (vagrant ssh-config $vm | Select-String "Port").ToString().Trim().Split(" ")[1]
     $keyfile = (vagrant ssh-config $vm | Select-String "IdentityFile").ToString().Trim().Split(" ")[1]
     echo $pubkey | ssh -i $keyfile -p $port -o StrictHostKeyChecking=no vagrant@127.0.0.1 "cat >> /home/vagrant/.ssh/authorized_keys"
 }
 ```
-Förväntat output: `Warning: Permanently added '[127.0.0.1]:XXXX'` för varje server.  
-Vad vi fick: nginx, web1, web2, database lyckades ✅  
-Fel vi fick på monitor: `kex_exchange_identification: read: Connection reset`  
-Orsak: Monitor hade precis startats om och SSH var inte redo än.  
-Lösning: Körde `vagrant reload monitor` och försökte igen — lyckades ✅
+Förväntat output: `Warning: Permanently added '[127.0.0.1]:XXXX'` för varje server.
+Vad vi fick: nginx, web1, web2, database lyckades ✅
+Fel vi fick på monitor: `kex_exchange_identification: read: Connection reset`
+Orsak: Monitor hade precis startats om och SSH
+var inte redo än. Monitor har 2048 MB RAM och
+behöver längre starttid än övriga servrar.
+Lösning: Körde `vagrant reload monitor` och
+försökte igen — lyckades ✅
+
+```powershell
+# Ladda upp säkerhetshärdning-filer till control-VM
+# Varför: Ansible på control-VM behöver filerna lokalt
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\security_hardening\tasks\main.yml /home/vagrant/ansible/roles/security_hardening/tasks/main.yml control
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\security_hardening\handlers\main.yml /home/vagrant/ansible/roles/security_hardening/handlers/main.yml control
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\security_hardening\templates\sshd_config.j2 /home/vagrant/ansible/roles/security_hardening/templates/sshd_config.j2 control
+```
+Förväntat output: `Upload has completed successfully!` för varje fil.
+Vad vi fick: Alla tre filer laddades upp korrekt ✅
+
+```powershell
+# Committa och pusha alla ändringar
+PS E:\Secure-Infra-Lab> git add ansible/roles/security_hardening ansible/site.yml
+PS E:\Secure-Infra-Lab> git commit -m "Add security_hardening role: SSH hardening, fail2ban, auditd"
+PS E:\Secure-Infra-Lab> git push
+```
+Förväntat output: Commit bekräftas och pushas till GitHub.
+Vad vi fick: Exakt det förväntade ✅
 
 ---
 
@@ -502,20 +628,20 @@ Lösning: Körde `vagrant reload monitor` och försökte igen — lyckades ✅
 # Kör från: E:\Secure-Infra-Lab\vagrant
 PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control
 ```
-Förväntat output: `vagrant@control:~$`  
+Förväntat output: `vagrant@control:~$`
 Vad vi fick: Inloggning lyckades ✅
 
 ```bash
 # Skapa mappstruktur för platshållarroller inuti control-servern
 # Varför: Ansible på control-servern letar efter roller
-# i /home/vagrant/ansible/roles/
+# i /home/vagrant/ansible/roles/ — inte på Windows
 vagrant@control:~$ for role in database flask nginx wazuh_agent; do
     mkdir -p /home/vagrant/ansible/roles/$role/tasks
     echo -e "---\n# Placeholder — role not yet implemented" \
     > /home/vagrant/ansible/roles/$role/tasks/main.yml
 done
 ```
-Förväntat output: Inga felmeddelanden.  
+Förväntat output: Inga felmeddelanden.
 Vad vi fick: Alla mappar och filer skapades korrekt ✅
 
 ```bash
@@ -538,7 +664,7 @@ Vad vi fick: Exakt det förväntade ✅
 # Varför: Control behöver ett eget nyckelpar för att
 # autentisera mot nginx, web1, web2, database och monitor
 # -t ed25519: modern och säker nyckeltyp
-# -N "": inget lösenord på nyckeln — krävs för automation
+# -N "": inget lösenord — krävs för automatiserad drift
 vagrant@control:~$ ssh-keygen -t ed25519 -f /home/vagrant/.ssh/id_rsa -N ""
 ```
 Förväntat output:
@@ -554,15 +680,15 @@ vagrant@control:~$ ls -la /home/vagrant/.ssh/
 ```
 Förväntat output:
 ```
--rw------- id_rsa      (privat nyckel — stannar här)
--rw-r--r-- id_rsa.pub  (publik nyckel — kopieras till andra servrar)
+-rw------- id_rsa      (privat nyckel — lämnar aldrig control)
+-rw-r--r-- id_rsa.pub  (publik nyckel — distribueras till alla servrar)
 ```
 Vad vi fick: Exakt det förväntade ✅
 
 ```bash
-# Gå till ansible-mappen och kör playbooken mot bara control
-# Varför: Säkrare att testa mot en server innan vi
-# kör mot alla sex
+# Kör playbooken mot bara control-servern först
+# Varför: Säkrare att verifiera mot en server
+# innan vi kör mot alla sex
 vagrant@control:~$ cd /home/vagrant/ansible
 vagrant@control:~/ansible$ ansible-playbook site.yml --limit control
 ```
@@ -577,7 +703,7 @@ Vad vi fick: Exakt det förväntade ✅
 # Kör playbooken mot alla sex servrar
 vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
-Förväntat output: `failed=0` för alla sex servrar.  
+Förväntat output: `failed=0` för alla sex servrar.
 Vad vi fick:
 ```
 control   ok=6  changed=1  failed=0  ✅
@@ -587,8 +713,9 @@ web1      ok=8  changed=5  failed=0  ✅
 web2      ok=8  changed=5  failed=0  ✅
 monitor   ok=2  failed=1            ❌
 ```
-Fel vi fick: monitor fick `failed=1` första gången.  
-Orsak: Monitor hade precis startats om och var inte helt redo.  
+Fel vi fick: monitor fick `failed=1` första gången.
+Orsak: Monitor hade precis startats om och var
+inte helt redo än.
 Lösning: Körde playbooken igen mot bara monitor:
 ```bash
 vagrant@control:~/ansible$ ansible-playbook site.yml --limit monitor
@@ -598,10 +725,10 @@ Resultat: `ok=8  changed=4  failed=0` ✅
 ```bash
 # Verifiera idempotens — kör playbooken en gång till
 # Förväntat: changed=0 på alla servrar eftersom
-# allt redan är konfigurerat
+# allt redan är korrekt konfigurerat
 vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
-Förväntat output: `changed=0` på alla servrar.  
+Förväntat output: `changed=0` på alla servrar.
 Vad vi fick:
 ```
 control   ok=6  changed=1  failed=0
@@ -611,96 +738,105 @@ nginx     ok=7  changed=0  failed=0
 web1      ok=7  changed=0  failed=0
 web2      ok=7  changed=0  failed=0
 ```
-Control visade `changed=1` — det är apt cache-uppdateringen
-som alltid räknas som changed. Alla andra visade
+Control visade `changed=1` — apt cache-uppdateringen
+räknas alltid som changed. Alla andra visade
 `changed=0` — idempotens bekräftad ✅
 
 ---
 
 ### Konfigurationsfiler
 
-📄 `ansible/roles/security_hardening/tasks/main.yml`  
-**Vad den gör:** Listan över allt som ska göras —
-uppdatera paketcachen, installera fail2ban och auditd,
-distribuera SSH-konfigurationen och starta tjänsterna.  
+📄 `ansible/roles/security_hardening/tasks/main.yml`
+**Vad den gör:** Uppdaterar paketcachen, installerar
+fail2ban och auditd, distribuerar SSH-konfigurationen,
+startar säkerhetstjänsterna och inaktiverar requiretty
+i sudoers för att möjliggöra pipelining.
 **Varför den finns:** Det är ingångspunkten för rollen.
-Ansible letar alltid efter `tasks/main.yml` när en
-roll körs.  
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/tasks/main.yml  
-**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html
+Ansible kör tasks/main.yml automatiskt när rollen
+aktiveras i site.yml.
+**Hur vi skrev den:** Vi identifierade varje
+säkerhetskrav och sökte rätt Ansible-modul för
+varje steg i officiell dokumentation.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/tasks/main.yml
+**Officiella källor:**
+- apt-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_module.html
+- service-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/service_module.html
+- template-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html
+- lineinfile-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/lineinfile_module.html
 
-📄 `ansible/roles/security_hardening/handlers/main.yml`  
-**Vad den gör:** Definierar `Restart sshd` — en åtgärd
-som bara körs om SSH-konfigurationen faktiskt ändrades.  
-**Varför den finns:** Om SSH-konfigurationen inte ändrats
-ska SSH inte startas om. Onödiga omstarter av SSH
-bryter aktiva sessioner.  
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/handlers/main.yml  
+📄 `ansible/roles/security_hardening/handlers/main.yml`
+**Vad den gör:** Definierar `Restart sshd` — körs
+bara om SSH-konfigurationen faktiskt ändrades.
+**Varför den finns:** Onödiga omstarter av SSH
+i produktion bryter aktiva sessioner för alla
+inloggade användare.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/handlers/main.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
 
-📄 `ansible/roles/security_hardening/templates/sshd_config.j2`  
-**Vad den gör:** Mall för SSH-serverkonfigurationen.
-Stänger av root-inloggning och lösenordsinloggning.
+📄 `ansible/roles/security_hardening/templates/sshd_config.j2`
+**Vad den gör:** Jinja2-mall för SSH-serverkonfigurationen.
+Inaktiverar root-inloggning och lösenordsinloggning.
 Begränsar inloggningsförsök till tre. Tillåter bara
-användaren `vagrant`.  
+användaren `vagrant`. Stänger av inaktiva sessioner
+efter 5 minuter.
 **Varför den finns:** Standardkonfigurationen för SSH
-tillåter lösenordsinloggning vilket gör servern sårbar
-för automatiserade inloggningsattacker.  
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/templates/sshd_config.j2  
+tillåter lösenordsinloggning vilket exponerar servern
+för automatiserade brute-force-attacker.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/templates/sshd_config.j2
 **Officiell dokumentation:** https://man.openbsd.org/sshd_config
 
-📄 `.gitattributes`  
-**Vad den gör:** Talar om för Git att alltid använda
-LF-radbrytningar för alla filer — oavsett om man
-jobbar på Windows eller Linux.  
+📄 `.gitattributes`
+**Vad den gör:** Instruerar Git att alltid använda
+LF-radbrytningar för alla filer — oavsett operativsystem.
 **Varför den finns:** Windows använder CRLF och Linux
 använder LF. Utan den här filen konverterar Git på
-Windows alla filer till CRLF vilket kan göra att
-Bash-skript och YAML-filer inte fungerar på Linux.  
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/.gitattributes  
+Windows alla filer till CRLF vilket kan orsaka
+tolkningsfel i Bash-skript och YAML-filer på
+Linux-servrar.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/.gitattributes
 **Officiell dokumentation:** https://git-scm.com/docs/gitattributes
 
 ---
 
 ### Problem och lösningar
 
-**Problem 1 — Ansible kraschade för att roller saknades**  
-**Felmeddelande:** `the role 'database' was not found in /home/vagrant/ansible/roles`  
-**Vad som hände:** Ansible kontrollerar alla roller som
-nämns i site.yml när den startar — även roller som inte
-körs just nu. database, flask, nginx och wazuh_agent
-fanns inte än.  
-**Lösning:** Vi skapade tomma platshållarfiler för varje
+**Problem 1 — Ansible kraschade för att roller saknades**
+**Felmeddelande:** `the role 'database' was not found in /home/vagrant/ansible/roles`
+**Vad som hände:** Ansible kontrollerar alla roller
+som nämns i site.yml vid uppstart — även roller som
+inte körs just nu. database, flask, nginx och
+wazuh_agent fanns inte än.
+**Lösning:** Skapade tomma platshållarfiler för varje
 roll. De innehåller bara en kommentar och gör ingenting.
-De ersätts med riktig kod när vi kommer till respektive fas.
+De ersätts med riktig kod när respektive fas börjar.
 
-**Problem 2 — Control saknade SSH-nyckel**  
-**Felmeddelande:** `/home/vagrant/.ssh/id_rsa: No such file or directory` och `Permission denied (publickey)`  
-**Vad som hände:** Vagrant skapar SSH-nycklar för att
-du ska kunna logga in i VMs från Windows. Men dessa
+**Problem 2 — Control saknade SSH-nyckel**
+**Felmeddelande:** `/home/vagrant/.ssh/id_rsa: No such file or directory` och `Permission denied (publickey)`
+**Vad som hände:** Vagrant skapar SSH-nycklar för
+kommunikation mellan Windows och VMs. Men dessa
 nycklar delas inte automatiskt mellan VMs. Control
-saknade ett eget nyckelpar.  
-**Lösning:** Vi genererade ett nytt ED25519-nyckelpar
-på control med `ssh-keygen`. Sedan kopierade vi den
-publika nyckeln till `authorized_keys` på varje server
-via Vagrants egna nycklar från Windows-sidan.
+saknade ett eget nyckelpar för intern SSH-kommunikation.
+**Lösning:** Genererade ett ED25519-nyckelpar på
+control med `ssh-keygen`. Distribuerade den publika
+nyckeln till `authorized_keys` på varje server via
+Vagrants egna nycklar från Windows.
 
-**Problem 3 — Monitor nekade SSH-anslutning**  
-**Felmeddelande:** `kex_exchange_identification: read: Connection reset`  
-**Vad som hände:** Monitor hade precis startats om och
-SSH-tjänsten var inte redo än. Monitor har 2048 MB RAM
-och behöver längre tid för att starta.  
-**Lösning:** `vagrant reload monitor` följt av ett nytt
-försök efter att servern var helt uppe.
+**Problem 3 — Monitor nekade SSH-anslutning**
+**Felmeddelande:** `kex_exchange_identification: read: Connection reset`
+**Vad som hände:** Monitor hade precis startats om
+och SSH-tjänsten var inte redo än. Monitor allokerar
+2048 MB RAM och behöver längre uppstartstid.
+**Lösning:** `vagrant reload monitor` följt av
+förnyat försök efter fullständig uppstart.
 
-**Problem 4 — Fel radbrytningar (CRLF/LF)**  
-**Felmeddelande:** `warning: LF will be replaced by CRLF`  
-**Vad som hände:** Git på Windows konverterade alla filer
-till CRLF automatiskt. Det kan göra att Bash-skript och
-YAML-filer inte fungerar på Linux-servrar.  
-**Lösning:** Vi skapade `.gitattributes` med regeln
-`* text=auto eol=lf` och normaliserade alla befintliga
-filer med:
+**Problem 4 — Inkonsekventa radbrytningar (CRLF/LF)**
+**Felmeddelande:** `warning: LF will be replaced by CRLF`
+**Vad som hände:** Git på Windows konverterade
+automatiskt alla filer till CRLF. Det kan orsaka
+tolkningsfel i YAML- och Bash-filer på Linux-servrar.
+**Lösning:** Skapade `.gitattributes` med regeln
+`* text=auto eol=lf` och normaliserade alla
+befintliga filer:
 ```powershell
 PS E:\Secure-Infra-Lab> git rm --cached -r .
 PS E:\Secure-Infra-Lab> git reset --hard
@@ -713,60 +849,63 @@ PS E:\Secure-Infra-Lab> git reset --hard
 **Koncept 1: SSH-nyckelautentisering**
 
 SSH-nycklar fungerar som ett digitalt lås och nyckel.
-Den publika nyckeln är låset — den läggs på servern.
-Den privata nyckeln är nyckeln — den stannar hos den
-som ska logga in. Inget lösenord skickas över nätverket.
+Den publika nyckeln är låset — den läggs på servern
+i `authorized_keys`. Den privata nyckeln är nyckeln
+— den stannar hos den som ska logga in och lämnar
+aldrig den servern.
 
 I det här projektet har control-servern den privata
-nyckeln. Vi kopierade den publika nyckeln till alla
-andra servrar. Nu kan Ansible logga in automatiskt
-utan lösenord — och lösenordsinloggning är helt
-avstängd via `sshd_config.j2`.
+nyckeln. Den publika nyckeln distribuerades till alla
+andra servrar. Ansible loggar nu in automatiskt utan
+lösenord — och lösenordsinloggning är helt inaktiverad
+via `sshd_config.j2`.
 
-I stora produktionsmiljöer hanteras SSH-nycklar via
-centraliserade system som HashiCorp Vault. Nycklarna
-byts ut automatiskt med jämna mellanrum.
+I produktionsmiljöer hanteras SSH-nycklar via
+centraliserade system som HashiCorp Vault med
+automatisk nyckelrotation och revisionsspårning.
 
 **Officiell dokumentation:** https://www.openssh.com/manual.html
 
-**Koncept 2: Idempotens**
+**Koncept 2: Idempotens i konfigurationshantering**
 
-Idempotens betyder att du kan göra samma sak hur
-många gånger du vill utan att resultatet förändras.
-Tänk på en ljusknapp — trycker du på "tänd" när
-lampan redan är tänd händer ingenting.
+En idempotent operation producerar identiskt resultat
+oavsett hur många gånger den körs. I Ansible
+kontrollerar varje modul nuvarande tillstånd mot
+önskat tillstånd — åtgärder vidtas enbart vid
+avvikelse.
 
-Ansible fungerar likadant. Innan varje åtgärd
-kontrollerar Ansible om det redan är gjort. Är det
-redan gjort hoppar Ansible över det — `changed=0`.
-
-Det här är viktigt i produktion. Man kan köra
-playbooken varje natt för att säkerställa att alla
-servrar är korrekt konfigurerade. Om någon ändrat
-något manuellt återställs det automatiskt.
+I praktiken innebär det att en playbook kan köras
+regelbundet i produktion för att säkerställa
+konfigurationskonformitet. Om en operatör manuellt
+ändrat en inställning återställs den automatiskt vid
+nästa körning — utan att påverka komponenter som
+redan är korrekt konfigurerade.
 
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/reference_appendices/glossary.html
 
-**Koncept 3: Defense-in-Depth**
+**Koncept 3: Defense-in-Depth via SSH-härdning**
 
-Defense-in-Depth betyder att man skyddar ett system
-på flera oberoende sätt. Om ett skydd kringgås finns
+Defense-in-Depth innebär att systemet skyddas på
+flera oberoende sätt. Om ett skydd kringgås finns
 nästa skydd kvar.
 
-Vi stänger av lösenordsinloggning — SSH-nycklar krävs.
-fail2ban blockerar IP-adresser som försöker logga in
-för många gånger. auditd loggar allt som händer.
-Wazuh samlar loggarna centralt och varnar om något
-misstänkt sker.
+Standardkonfigurationen för SSH tillåter
+lösenordsinloggning — vilket exponerar systemet för
+automatiserade brute-force-attacker. Vår härdade
+konfiguration eliminerar denna attackvektor:
+enbart kryptografiska nycklar accepteras.
 
-En angripare som lyckas ta sig förbi ett lager möter
-direkt nästa.
+fail2ban lägger till ett reaktivt skyddslager —
+IP-adresser som uppvisar mönster karakteristiska
+för automatiserade attacker blockeras automatiskt.
+auditd möjliggör forensisk analys — vid en
+säkerhetsincident finns en fullständig revisionslogg
+över systemhändelser på varje server.
 
-**Officiell dokumentation:**  
-- fail2ban: https://www.fail2ban.org/wiki/index.php/MANUAL_0_8  
-- auditd: https://linux.die.net/man/8/auditd  
+**Officiell dokumentation:**
+- fail2ban: https://www.fail2ban.org/wiki/index.php/MANUAL_0_8
+- auditd: https://linux.die.net/man/8/auditd
 - OpenSSH: https://man.openbsd.org/sshd_config
-
 ---
 
 ## Övrigt — Git branching-strategi
@@ -869,3 +1008,417 @@ GitHub visade oss den möjligheten när vi pushade
 **Officiell dokumentation:**  
 - Git branching: https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell  
 - Git tagging: https://git-scm.com/book/en/v2/Git-Basics-Tagging
+
+
+---
+
+## Fas 4 — database-rollen
+**Datum:** 2026-05-06
+**Git-commits:**
+- `Add database role: PostgreSQL, UFW, schema`
+- `Fix: clean inventory groups, pipelining, SSH UFW rule, no warnings`
+
+### Vad vi gjorde
+
+Vi byggde database-rollen som installerar och konfigurerar
+PostgreSQL på database-servern. Rollen skapar databas och
+användare med minsta privilegium, skapar visits-tabellen
+via en SQL-mall och konfigurerar brandväggsregler så att
+bara web1 och web2 får ansluta till databasen.
+
+Vi stötte på flera problem under fasen. Det viktigaste
+var att UFW blockerade SSH-porten när brandväggen
+aktiverades — vilket låste oss ute från database-servern
+helt. Vi löste det genom att alltid tillåta SSH-porten
+innan UFW aktiveras.
+
+Vi fixade också tre varningar som uppstod under körningen:
+namnkrockar i inventory.ini, world-readable temporära filer
+och Python interpreter-varningar. Alla tre åtgärdades
+permanent för en ren produktionsmiljö.
+
+Slutresultat: `ansible-playbook site.yml` kördes mot alla
+sex servrar med `failed=0` och inga varningar.
+Idempotens bekräftad — `changed=0` på alla servrar
+utom database som har `changed=1` för PostgreSQL restart.
+
+---
+
+### Varför detta steg är viktigt
+
+Databasen är hjärtat i systemet. Utan en korrekt
+konfigurerad databas kan Flask-applikationen inte spara
+eller hämta besöksdata. UFW-reglerna säkerställer att
+bara web1 och web2 får prata med databasen — det är
+ett kritiskt säkerhetslager i vår Defense-in-Depth-strategi.
+
+---
+
+### Körda kommandon
+
+#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
+
+```powershell
+# Skapa mappstruktur för database-rollen
+# Varför: Ansible kräver handlers/ och templates/ mappar
+# Obs: tasks/ fanns redan som platshållare sedan Fas 3
+PS E:\Secure-Infra-Lab> mkdir ansible\roles\database\handlers
+PS E:\Secure-Infra-Lab> mkdir ansible\roles\database\templates
+```
+Förväntat output: Mapparna skapas utan felmeddelanden.
+Vad vi fick: Mapparna skapades korrekt ✅
+
+```powershell
+# Öppna rollfilerna i VS Code för redigering
+PS E:\Secure-Infra-Lab> code ansible\roles\database\tasks\main.yml
+PS E:\Secure-Infra-Lab> code ansible\roles\database\handlers\main.yml
+PS E:\Secure-Infra-Lab> code ansible\roles\database\templates\schema.sql.j2
+```
+Förväntat output: VS Code öppnar varje fil.
+Vad vi fick: Filerna öppnades korrekt ✅
+
+```powershell
+# Ladda upp tasks/main.yml till control-VM
+# Varför: Ansible på control-VM kör rollerna —
+# den behöver filerna lokalt
+PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control -c "truncate -s 0 /home/vagrant/ansible/roles/database/tasks/main.yml"
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\database\tasks\main.yml /home/vagrant/ansible/roles/database/tasks/main.yml control
+```
+Förväntat output: `Upload has completed successfully!`
+Vad vi fick: Exakt det förväntade ✅
+
+```powershell
+# Fixa inventory.ini — byt ut gruppnamn för att
+# undvika namnkrockar mellan grupp och host
+# Varför: [database] som gruppnamn krockar med
+# hosten som också heter database — Ansible varnar
+PS E:\Secure-Infra-Lab> code ansible\inventory.ini
+```
+Gamla gruppnamn → nya gruppnamn:
+```
+[control]    → [control_g]
+[nginx]      → [nginx_g]
+[webserver]  → [webserver_g]
+[webserver2] → [webserver2_g]
+[database]   → [database_g]
+[monitor]    → [monitor_g]
+```
+Förväntat output: Inga namnkrocks-varningar vid nästa körning.
+Vad vi fick: Alla varningar om namnkrockar försvann ✅
+
+```powershell
+# Uppdatera ansible.cfg med pipelining
+# Varför: Pipelining eliminerar world-readable
+# tmp files-varningen och är säkrare i produktion
+PS E:\Secure-Infra-Lab> code ansible\ansible.cfg
+```
+Vad vi lade till i [ssh_connection]:
+```ini
+pipelining = True
+```
+Förväntat output: World-readable tmp files-varningen försvinner.
+Vad vi fick: Varningen försvann efter att requiretty
+fixades i security_hardening-rollen ✅
+
+```powershell
+# Ladda upp uppdaterade filer till control-VM
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\inventory.ini /home/vagrant/ansible/inventory.ini control
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\site.yml /home/vagrant/ansible/site.yml control
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\ansible.cfg /home/vagrant/ansible/ansible.cfg control
+```
+Förväntat output: `Upload has completed successfully!` för varje fil.
+Vad vi fick: Alla tre filer laddades upp korrekt ✅
+
+```powershell
+# Kopiera SSH-nyckel till nyskapad database-VM
+# Varför: Vi förstörde och återskapade database-VM —
+# den nya VM:en saknade controls publika nyckel
+PS E:\Secure-Infra-Lab\vagrant> $pubkey = vagrant ssh control -c "cat /home/vagrant/.ssh/id_rsa.pub"
+PS E:\Secure-Infra-Lab\vagrant> $port = (vagrant ssh-config database | Select-String "Port").ToString().Trim().Split(" ")[1]
+PS E:\Secure-Infra-Lab\vagrant> $keyfile = (vagrant ssh-config database | Select-String "IdentityFile").ToString().Trim().Split(" ")[1]
+PS E:\Secure-Infra-Lab\vagrant> echo $pubkey | ssh -i $keyfile -p $port -o StrictHostKeyChecking=no vagrant@127.0.0.1 "cat >> /home/vagrant/.ssh/authorized_keys"
+```
+Förväntat output: `Warning: Permanently added '[127.0.0.1]:2203'`
+Vad vi fick: Exakt det förväntade ✅
+
+```powershell
+# Rensa gamla SSH-fingeravtryck efter vagrant destroy
+# Varför: När vi förstörde och återskapade database-VM
+# fick den ett nytt fingeravtryck. Det gamla sparade
+# fingeravtrycket i known_hosts orsakar varningar
+PS E:\Secure-Infra-Lab\vagrant> ssh-keygen -f "C:\Users\modak\.ssh\known_hosts" -R "[127.0.0.1]:2203"
+PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control -c "ssh-keygen -f '/home/vagrant/.ssh/known_hosts' -R '192.168.56.14'"
+```
+Förväntat output: `known_hosts updated` på båda ställena.
+Vad vi fick: Exakt det förväntade ✅
+
+```powershell
+# Committa och pusha alla ändringar till GitHub
+PS E:\Secure-Infra-Lab> git add ansible/roles/database ansible/inventory.ini ansible/ansible.cfg ansible/site.yml ansible/roles/security_hardening
+PS E:\Secure-Infra-Lab> git commit -m "Fix: clean inventory groups, pipelining, SSH UFW rule, no warnings"
+PS E:\Secure-Infra-Lab> git push
+```
+Förväntat output: `feature/database-role -> feature/database-role`
+Vad vi fick: Exakt det förväntade ✅
+
+---
+
+#### Bash — inuti control-servern
+
+```bash
+# Gå till ansible-mappen och kör playbooken mot database
+vagrant@control:~$ cd /home/vagrant/ansible
+vagrant@control:~/ansible$ ansible-playbook site.yml --limit database
+```
+Förväntat output:
+```
+PLAY RECAP
+database : ok=19+  changed=X  unreachable=0  failed=0
+```
+Vad vi fick första körningen: `failed=1` — UFW blockerade SSH ❌
+Orsak: Vi aktiverade UFW med `policy: deny` utan att
+tillåta SSH-porten först. Det låste oss ute från servern.
+Lösning: Lade till `Allow SSH`-task före `Enable UFW` i
+database-rollens tasks/main.yml.
+
+```bash
+# Kör playbooken mot alla servrar
+vagrant@control:~/ansible$ ansible-playbook site.yml
+```
+Förväntat output: `failed=0` för alla sex servrar, inga varningar.
+Vad vi fick slutligen:
+```
+control   ok=7   changed=0  failed=0  ✅
+database  ok=21  changed=1  failed=0  ✅
+monitor   ok=8   changed=0  failed=0  ✅
+nginx     ok=8   changed=0  failed=0  ✅
+web1      ok=8   changed=0  failed=0  ✅
+web2      ok=8   changed=0  failed=0  ✅
+```
+Inga varningar ✅
+
+---
+
+### Konfigurationsfiler
+
+📄 `ansible/roles/database/tasks/main.yml`
+**Vad den gör:** Installerar PostgreSQL, skapar databas
+och användare, kör SQL-schemat, konfigurerar
+listen_addresses, pg_hba.conf och UFW-brandväggsregler.
+**Varför den finns:** Det är ingångspunkten för
+database-rollen. Ansible kör tasks/main.yml automatiskt
+när rollen aktiveras i site.yml.
+**Hur vi skrev den:** Vi identifierade varje steg som
+behövdes och sökte rätt Ansible-modul för varje steg
+i officiell dokumentation.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/roles/database/tasks/main.yml
+**Officiella källor:**
+- apt-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_module.html
+- postgresql_user: https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_user_module.html
+- postgresql_db: https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_db_module.html
+- postgresql_pg_hba: https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_pg_hba_module.html
+- lineinfile: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/lineinfile_module.html
+- ufw: https://docs.ansible.com/ansible/latest/collections/community/general/ufw_module.html
+- template: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html
+
+📄 `ansible/roles/database/handlers/main.yml`
+**Vad den gör:** Definierar `Restart postgresql` —
+körs bara om PostgreSQL-konfigurationen faktiskt ändrades.
+**Varför den finns:** Onödiga omstarter av PostgreSQL
+i produktion kan orsaka kortvariga driftstopp för
+alla anslutna applikationer.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/roles/database/handlers/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
+
+📄 `ansible/roles/database/templates/schema.sql.j2`
+**Vad den gör:** SQL-mall som skapar visits-tabellen
+om den inte redan finns. Tabellen sparar server_name
+och tidsstämpel för varje besök.
+**Varför den finns:** Flask-applikationen behöver
+visits-tabellen för att fungera. `CREATE TABLE IF NOT EXISTS`
+gör att tasken är idempotent — den kan köras flera
+gånger utan att skapa dubbletter.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/roles/database/templates/schema.sql.j2
+**Officiell dokumentation:** https://www.postgresql.org/docs/14/sql-createtable.html
+
+📄 `ansible/inventory.ini` (uppdaterad)
+**Vad den gör:** Listar alla sex servrar med
+IP-adresser, SSH-inställningar och explicit
+Python-interpreter. Gruppnamnen är uppdaterade
+med `_g`-suffix för att undvika namnkrockar.
+**Varför den uppdaterades:** Ansible varnade för
+namnkrockar när grupp och host hade samma namn.
+Explicit Python-interpreter eliminerar
+interpreter-varningen.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/inventory.ini
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html
+
+📄 `ansible/ansible.cfg` (uppdaterad)
+**Vad den gör:** Ansible-konfiguration med pipelining
+aktiverat för att eliminera world-readable
+tmp files-varningen.
+**Varför den uppdaterades:** Pipelining är säkrare
+än world-readable temporära filer. Det kräver att
+`Defaults !requiretty` är konfigurerat i sudoers
+— vilket security_hardening-rollen nu hanterar.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/ansible.cfg
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/reference_appendices/config.html
+
+---
+
+### Problem och lösningar
+
+**Problem 1 — Duplicerat innehåll i tasks/main.yml**
+**Vad som hände:** När vi försökte klistra in kod i
+terminalen via heredoc och PowerShell here-string
+kopierades texten fel — antingen visades den i
+terminalen istället för att skrivas till filen,
+eller så lades den till efter det befintliga
+innehållet. Resultatet blev att filen innehöll
+dubbla kopior av koden.
+**Orsak:** Terminalen (både Bash och PowerShell) kan
+inte hantera långa inklistringar med specialtecken
+på ett tillförlitligt sätt. Unicode-symboler i
+kommentarerna (─, █) förstörde texten ytterligare.
+**Lösning:** Öppnade filen direkt i VS Code,
+markerade allt med `Ctrl+A`, tog bort med `Delete`
+och klistrade in den rena koden. Laddade sedan upp
+med `vagrant upload`.
+**Lärdomen:** Redigera alltid YAML-filer i VS Code —
+aldrig via terminal för längre innehåll.
+
+**Problem 2 — UFW låste ut SSH**
+**Felmeddelande:** `Connection timed out` vid SSH till database
+**Vad som hände:** Vi aktiverade UFW med `policy: deny`
+utan att först tillåta SSH-porten (22). UFW blockerade
+all trafik inklusive SSH — vi kunde inte längre
+ansluta till database-servern.
+**Lösning:** Förstörde och återskapade database-VM med
+`vagrant destroy database -f && vagrant up database`.
+Lade sedan till `Allow SSH`-tasken **före** `Enable UFW`
+i tasks/main.yml.
+**Lärdomen:** I en verklig produktionsmiljö hade detta
+inneburit ett allvarligt driftstopp. Alltid tillåt
+SSH-porten innan UFW aktiveras — annars låser man
+ut sig själv permanent.
+
+**Problem 3 — REMOTE HOST IDENTIFICATION HAS CHANGED**
+**Felmeddelande:** `WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED`
+**Vad som hände:** När vi återskapade database-VM fick
+den ett nytt SSH-fingeravtryck. Det gamla fingeravtrycket
+fanns kvar i `known_hosts` på både Windows och control-VM.
+SSH vägrade ansluta av säkerhetsskäl.
+**Lösning:** Rensade gamla fingeravtryck med
+`ssh-keygen -R` på båda ställena.
+**Lärdomen:** Detta händer alltid när en server
+återskapas. I produktion dokumenterar man alltid
+serverändringar och uppdaterar `known_hosts` på
+alla relevanta klienter.
+
+**Problem 4 — Pipelining orsakade SSH-timeout**
+**Felmeddelande:** `Data could not be sent to remote host`
+**Vad som hände:** Vi aktiverade pipelining i ansible.cfg
+men `requiretty` var fortfarande aktiverat i sudoers
+på servrarna. Pipelining och requiretty är inkompatibla.
+**Lösning:** Lade till `Defaults !requiretty` i sudoers
+via security_hardening-rollen. Sedan fungerade
+pipelining korrekt.
+**Lärdomen:** Pipelining kräver alltid att requiretty
+är inaktiverat. Rätt ordning är: konfigurera sudoers
+först — aktivera pipelining sedan.
+
+---
+
+### Teorikoppling
+
+**Koncept 1: Minsta privilegium (Principle of Least Privilege)**
+
+Minsta privilegium betyder att varje del av systemet
+bara får de rättigheter den faktiskt behöver —
+ingenting mer.
+
+I det här projektet skapade vi en dedikerad
+databasanvändare `flaskuser` som bara får ansluta
+till `flaskdb`-databasen. Användaren kan inte skapa
+nya databaser, radera tabeller eller komma åt andra
+databaser på servern.
+
+UFW-reglerna tillämpar samma princip på nätverksnivå —
+bara web1 och web2 får ansluta till port 5432.
+Alla andra anslutningar blockeras.
+
+I produktion används detta mönster överallt.
+En webbapplikation får bara läsa och skriva till
+sin egen databas. En backup-tjänst får bara läsa.
+En admin-användare med fulla rättigheter existerar
+bara för underhållsarbete — aldrig för normal drift.
+
+**Officiell dokumentation:**
+- PostgreSQL roller: https://www.postgresql.org/docs/14/user-manag.html
+- UFW: https://help.ubuntu.com/community/UFW
+
+**Koncept 2: Hur man skriver en Ansible tasks/main.yml**
+
+Varje task i en Ansible-roll följer samma mönster:
+
+```yaml
+- name: Vad uppgiften gör (beskrivning på engelska)
+  modul_namn:
+    parameter1: värde1
+    parameter2: värde2
+```
+
+Så här tänker man när man skriver en tasks/main.yml
+från grunden:
+
+1. Tänk igenom steg för steg vad servern behöver
+2. För varje steg — sök rätt Ansible-modul:
+   https://docs.ansible.com/ansible/latest/collections/index_module.html
+3. Läs modulens dokumentation och kopiera exempelkoden
+4. Anpassa parametrarna till ditt projekt
+
+Moduler vi använde i database-rollen:
+
+| Modul | Vad den gör | Dokumentation |
+|-------|-------------|---------------|
+| apt | Installerar paket | https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_module.html |
+| service | Startar/stoppar tjänster | https://docs.ansible.com/ansible/latest/collections/ansible/builtin/service_module.html |
+| postgresql_user | Skapar databasanvändare | https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_user_module.html |
+| postgresql_db | Skapar databas | https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_db_module.html |
+| postgresql_script | Kör SQL-fil | https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_script_module.html |
+| postgresql_pg_hba | Konfigurerar pg_hba.conf | https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_pg_hba_module.html |
+| lineinfile | Ändrar en rad i en fil | https://docs.ansible.com/ansible/latest/collections/ansible/builtin/lineinfile_module.html |
+| ufw | Konfigurerar brandvägg | https://docs.ansible.com/ansible/latest/collections/community/general/ufw_module.html |
+| template | Kopierar Jinja2-mall | https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html |
+
+Det är precis så erfarna Ansible-användare jobbar —
+ingen kan alla moduler utantill. Man söker i
+dokumentationen varje gång.
+
+**Koncept 3: UFW och nätverkssegmentering**
+
+UFW (Uncomplicated Firewall) är ett enkelt sätt att
+hantera brandväggsregler i Linux. Det bygger på
+iptables men med ett mycket enklare gränssnitt.
+
+Vår UFW-konfiguration på database-servern:
+```
+Port 22   → Tillåt SSH från alla (måste alltid vara öppen)
+Port 5432 → Tillåt bara från 192.168.56.12 (web1)
+Port 5432 → Tillåt bara från 192.168.56.13 (web2)
+Allt annat → Blockera (policy: deny)
+```
+
+Lärdomen från det här projektet: Tillåt alltid
+SSH-porten INNAN du aktiverar UFW med `policy: deny`.
+Annars låser du ut dig själv från servern.
+
+I produktion lägger man också till övervakning av
+UFW-loggar i Wazuh så att man ser om någon försöker
+ansluta till blockerade portar — det kan vara ett
+tecken på en pågående attack.
+
+**Officiell dokumentation:**
+- UFW: https://help.ubuntu.com/community/UFW
+- PostgreSQL pg_hba.conf: https://www.postgresql.org/docs/14/auth-pg-hba-conf.html
+
