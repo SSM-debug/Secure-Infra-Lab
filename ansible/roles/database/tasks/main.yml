@@ -44,7 +44,7 @@
   lineinfile:
     path: /etc/postgresql/14/main/postgresql.conf
     regexp: "^#?listen_addresses"
-    line: "listen_addresses = '{{ webserver_ip }},{{ webserver2_ip }},127.0.0.1'"
+    line: "listen_addresses = '*'"
     state: present
   notify: Restart postgresql
 

@@ -1,0 +1,3 @@
+---
+# Override server_name for web2 specifically
+server_name: "Server 2"

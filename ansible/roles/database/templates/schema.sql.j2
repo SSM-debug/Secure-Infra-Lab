@@ -1,7 +1,10 @@
 -- Create visits table if it does not exist
--- server_name identifies which web server handled the request
 CREATE TABLE IF NOT EXISTS visits (
     id          SERIAL PRIMARY KEY,
     server_name VARCHAR(50) NOT NULL,
     visited_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Grant permissions to Flask application user
+GRANT SELECT, INSERT ON visits TO {{ db_user }};
+GRANT USAGE, SELECT ON SEQUENCE visits_id_seq TO {{ db_user }};

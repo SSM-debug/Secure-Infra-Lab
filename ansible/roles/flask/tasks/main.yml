@@ -1,2 +1,54 @@
-﻿---
-# Placeholder � role not yet implemented
+---
+- name: Install Python, pip and required system packages
+  apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-psycopg2
+    state: present
+    update_cache: yes
+
+- name: Install Flask and Gunicorn
+  pip:
+    name:
+      - flask
+      - gunicorn
+    state: present
+    executable: pip3
+
+- name: Copy app.py to server
+  copy:
+    src: app.py
+    dest: "{{ flask_app_dest }}"
+    owner: "{{ flask_user }}"
+    group: "{{ flask_user }}"
+    mode: '0644'
+  notify: Restart flask
+
+- name: Create Flask environment file
+  template:
+    src: flask.env.j2
+    dest: "{{ flask_env_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart flask
+
+- name: Deploy Flask systemd service
+  template:
+    src: flask.service.j2
+    dest: /etc/systemd/system/flask.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart flask
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start Flask service
+  service:
+    name: flask
+    state: started
+    enabled: yes

@@ -16,8 +16,3 @@ flask_user: vagrant
 
 # Path to Flask log file
 flask_log: /home/vagrant/flask.log
-
-# Server name — identifies which server handled the request
-# web1 gets "Server 1", web2 gets "Server 2"
-# This variable is overridden per host group in site.yml
-server_name: "Server 1"

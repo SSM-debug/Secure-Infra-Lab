@@ -3,3 +3,6 @@ vagrant/.vagrant/
 
 # Secrets — never commit passwords
 vagrant/secrets.yml
+
+# Vagrant shared folder — not part of the project
+vagrant/ansible/
