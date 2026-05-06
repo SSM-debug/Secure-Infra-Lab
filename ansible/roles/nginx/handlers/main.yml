@@ -1,4 +1,4 @@
-﻿---
+---
 # Restart nginx only when configuration has changed
 - name: Restart nginx
   service:
