@@ -1,2 +1,40 @@
----
-# Placeholder � role not yet implemented
+﻿---
+# ─── Install nginx ───────────────────────────────────────────
+- name: Install nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+# ─── Remove default nginx configuration ──────────────────────
+# The default config conflicts with our custom configuration
+- name: Remove default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Restart nginx
+
+# ─── Deploy custom nginx configuration ───────────────────────
+- name: Deploy nginx configuration
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/flask.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart nginx
+
+# ─── Enable the site ─────────────────────────────────────────
+- name: Enable flask site in nginx
+  file:
+    src: /etc/nginx/sites-available/flask.conf
+    dest: /etc/nginx/sites-enabled/flask.conf
+    state: link
+  notify: Restart nginx
+
+# ─── Start and enable nginx ──────────────────────────────────
+- name: Enable and start nginx
+  service:
+    name: nginx
+    state: started
+    enabled: yes

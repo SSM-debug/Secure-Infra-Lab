@@ -1,0 +1,23 @@
+﻿# Managed by Ansible — do not edit manually
+
+# Define the upstream Flask servers
+# nginx distributes requests between web1 and web2 in round-robin order
+upstream flask_servers {
+    server {{ webserver_ip }}:{{ flask_port }};
+    server {{ webserver2_ip }}:{{ flask_port }};
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    # Forward all requests to the Flask upstream
+    location / {
+        proxy_pass http://flask_servers;
+
+        # Pass original request headers to Flask
+        proxy_set_header Host            $host;
+        proxy_set_header X-Real-IP       $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
