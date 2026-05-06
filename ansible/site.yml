@@ -1,5 +1,4 @@
 ---
----
 # ─── Security hardening — all servers ───────────────────────
 # Run first — harden every VM before installing services
 - name: Apply security hardening to all servers
@@ -7,58 +6,58 @@
   become: true
   vars_files:
     - vars/vars.yml
-    - ../vagrant/secrets.yml
+    - secrets.yml
   roles:
     - security_hardening
-    
+
 # ─── Database ────────────────────────────────────────────────
 # Database must be configured before web servers start
 - name: Configure database server
-  hosts: database
+  hosts: database_g
   become: true
   vars_files:
     - vars/vars.yml
-    - ../vagrant/secrets.yml
+    - secrets.yml
   roles:
     - database
 
 # ─── Web server 1 ────────────────────────────────────────────
 - name: Configure web server 1
-  hosts: webserver
+  hosts: webserver_g
   become: true
   vars_files:
     - vars/vars.yml
-    - ../vagrant/secrets.yml
+    - secrets.yml
   roles:
     - flask
 
 # ─── Web server 2 ────────────────────────────────────────────
 - name: Configure web server 2
-  hosts: webserver2
+  hosts: webserver2_g
   become: true
   vars_files:
     - vars/vars.yml
-    - ../vagrant/secrets.yml
+    - secrets.yml
   roles:
     - flask
 
 # ─── Load balancer ───────────────────────────────────────────
 # nginx configured last — web1 and web2 must exist first
 - name: Configure nginx load balancer
-  hosts: nginx
+  hosts: nginx_g
   become: true
   vars_files:
     - vars/vars.yml
-    - ../vagrant/secrets.yml
+    - secrets.yml
   roles:
     - nginx
 
 # ─── Monitor ─────────────────────────────────────────────────
 - name: Configure monitor server
-  hosts: monitor
+  hosts: monitor_g
   become: true
   vars_files:
     - vars/vars.yml
-    - ../vagrant/secrets.yml
+    - secrets.yml
   roles:
     - wazuh_agent

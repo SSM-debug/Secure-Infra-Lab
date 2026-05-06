@@ -1,8 +1,4 @@
 ---
-# Placeholder � role not yet implemented
-
----
-# ─── Install PostgreSQL ──────────────────────────────────────
 - name: Install PostgreSQL and required packages
   apt:
     name:
@@ -12,15 +8,12 @@
     state: present
     update_cache: yes
 
-# ─── Ensure PostgreSQL is running ────────────────────────────
 - name: Ensure PostgreSQL service is started and enabled
   service:
     name: postgresql
     state: started
     enabled: yes
 
-# ─── Create database user ────────────────────────────────────
-# Creates the Flask app user with a password from secrets.yml
 - name: Create database user
   postgresql_user:
     name: "{{ db_user }}"
@@ -28,7 +21,6 @@
     state: present
   become_user: postgres
 
-# ─── Create database ─────────────────────────────────────────
 - name: Create database
   postgresql_db:
     name: "{{ db_name }}"
@@ -36,8 +28,6 @@
     state: present
   become_user: postgres
 
-# ─── Create visits table ─────────────────────────────────────
-# Deploys schema.sql.j2 and runs it against the database
 - name: Deploy database schema
   template:
     src: schema.sql.j2
@@ -45,13 +35,11 @@
     mode: '0644'
 
 - name: Run database schema
-  postgresql_query:
+  community.postgresql.postgresql_script:
     db: "{{ db_name }}"
-    query: "{{ lookup('file', '/tmp/schema.sql') }}"
+    path: /tmp/schema.sql
   become_user: postgres
 
-# ─── Configure listen_addresses ──────────────────────────────
-# Listen only on web1 and web2 IPs — never on all interfaces
 - name: Set PostgreSQL listen_addresses
   lineinfile:
     path: /etc/postgresql/14/main/postgresql.conf
@@ -60,8 +48,6 @@
     state: present
   notify: Restart postgresql
 
-# ─── Configure pg_hba.conf ───────────────────────────────────
-# Allow web1 to connect to the database
 - name: Allow web1 in pg_hba.conf
   postgresql_pg_hba:
     dest: /etc/postgresql/14/main/pg_hba.conf
@@ -73,7 +59,6 @@
     state: present
   notify: Restart postgresql
 
-# Allow web2 to connect to the database
 - name: Allow web2 in pg_hba.conf
   postgresql_pg_hba:
     dest: /etc/postgresql/14/main/pg_hba.conf
@@ -85,111 +70,12 @@
     state: present
   notify: Restart postgresql
 
-# ─── UFW firewall rules ───────────────────────────────────────
-# Only web1 and web2 can reach port 5432 — everything else blocked
-- name: Allow web1 to reach PostgreSQL
+- name: Allow SSH
   ufw:
     rule: allow
-    src: "{{ webserver_ip }}"
-    port: "5432"
+    port: "22"
     proto: tcp
 
-- name: Allow web2 to reach PostgreSQL
-  ufw:
-    rule: allow
-    src: "{{ webserver2_ip }}"
-    port: "5432"
-    proto: tcp
-
-- name: Enable UFW
-  ufw:
-    state: enabled
-    policy: deny---
-# ─── Install PostgreSQL ──────────────────────────────────────
-- name: Install PostgreSQL and required packages
-  apt:
-    name:
-      - postgresql
-      - postgresql-contrib
-      - python3-psycopg2
-    state: present
-    update_cache: yes
-
-# ─── Ensure PostgreSQL is running ────────────────────────────
-- name: Ensure PostgreSQL service is started and enabled
-  service:
-    name: postgresql
-    state: started
-    enabled: yes
-
-# ─── Create database user ────────────────────────────────────
-# Creates the Flask app user with a password from secrets.yml
-- name: Create database user
-  postgresql_user:
-    name: "{{ db_user }}"
-    password: "{{ db_password }}"
-    state: present
-  become_user: postgres
-
-# ─── Create database ─────────────────────────────────────────
-- name: Create database
-  postgresql_db:
-    name: "{{ db_name }}"
-    owner: "{{ db_user }}"
-    state: present
-  become_user: postgres
-
-# ─── Create visits table ─────────────────────────────────────
-# Deploys schema.sql.j2 and runs it against the database
-- name: Deploy database schema
-  template:
-    src: schema.sql.j2
-    dest: /tmp/schema.sql
-    mode: '0644'
-
-- name: Run database schema
-  postgresql_query:
-    db: "{{ db_name }}"
-    query: "{{ lookup('file', '/tmp/schema.sql') }}"
-  become_user: postgres
-
-# ─── Configure listen_addresses ──────────────────────────────
-# Listen only on web1 and web2 IPs — never on all interfaces
-- name: Set PostgreSQL listen_addresses
-  lineinfile:
-    path: /etc/postgresql/14/main/postgresql.conf
-    regexp: "^#?listen_addresses"
-    line: "listen_addresses = '{{ webserver_ip }},{{ webserver2_ip }},127.0.0.1'"
-    state: present
-  notify: Restart postgresql
-
-# ─── Configure pg_hba.conf ───────────────────────────────────
-# Allow web1 to connect to the database
-- name: Allow web1 in pg_hba.conf
-  postgresql_pg_hba:
-    dest: /etc/postgresql/14/main/pg_hba.conf
-    contype: host
-    databases: "{{ db_name }}"
-    users: "{{ db_user }}"
-    source: "{{ webserver_ip }}/32"
-    method: md5
-    state: present
-  notify: Restart postgresql
-
-# Allow web2 to connect to the database
-- name: Allow web2 in pg_hba.conf
-  postgresql_pg_hba:
-    dest: /etc/postgresql/14/main/pg_hba.conf
-    contype: host
-    databases: "{{ db_name }}"
-    users: "{{ db_user }}"
-    source: "{{ webserver2_ip }}/32"
-    method: md5
-    state: present
-  notify: Restart postgresql
-
-# ─── UFW firewall rules ───────────────────────────────────────
-# Only web1 and web2 can reach port 5432 — everything else blocked
 - name: Allow web1 to reach PostgreSQL
   ufw:
     rule: allow

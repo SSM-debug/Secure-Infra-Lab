@@ -37,3 +37,14 @@
     name: auditd
     state: started
     enabled: yes
+    
+# ─── Disable requiretty in sudoers ───────────────────────────
+# Required for Ansible pipelining to work correctly
+# Pipelining eliminates world-readable tmp files (security improvement)
+- name: Disable requiretty in sudoers for Ansible pipelining
+  lineinfile:
+    path: /etc/sudoers
+    regexp: "^Defaults.*requiretty"
+    line: "Defaults !requiretty"
+    validate: "visudo -cf %s"
+    state: present
