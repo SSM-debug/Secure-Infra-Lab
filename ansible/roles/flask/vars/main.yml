@@ -1,0 +1,23 @@
+﻿---
+# ─── Flask application variables ─────────────────────────────
+# These variables are used by tasks/main.yml and templates
+
+# Path where app.py will be copied on the server
+flask_app_dest: /home/vagrant/app.py
+
+# Path to the environment file with database credentials
+flask_env_file: /etc/flask.env
+
+# Port Flask listens on
+flask_port: 5000
+
+# User that runs the Flask service
+flask_user: vagrant
+
+# Path to Flask log file
+flask_log: /home/vagrant/flask.log
+
+# Server name — identifies which server handled the request
+# web1 gets "Server 1", web2 gets "Server 2"
+# This variable is overridden per host group in site.yml
+server_name: "Server 1"

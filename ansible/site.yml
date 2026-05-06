@@ -1,4 +1,4 @@
----
+﻿---
 # ─── Security hardening — all servers ───────────────────────
 # Run first — harden every VM before installing services
 - name: Apply security hardening to all servers

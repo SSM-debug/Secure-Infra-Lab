@@ -1,0 +1,6 @@
+﻿---
+# Restart Flask service only when configuration has changed
+- name: Restart flask
+  service:
+    name: flask
+    state: restarted
