@@ -1920,3 +1920,281 @@ standard för moderna webbapplikationer.
 **Officiell dokumentation:**
 - The Twelve-Factor App: https://12factor.net/config
 - Python os.getenv: https://docs.python.org/3/library/os.html#os.getenv
+
+
+---
+
+## Fas 6 — nginx-rollen
+**Datum:** 2026-05-06
+**Git-commits:**
+- `Add nginx role: reverse proxy, round-robin load balancer`
+- `Fix nginx role: remove BOM from nginx.conf.j2`
+
+### Vad vi gjorde
+
+Vi byggde nginx-rollen som konfigurerar nginx som
+reverse proxy med round-robin lastbalansering mot
+web1 och web2. nginx tar emot all trafik på port 80
+och skickar vidare till web1 och web2 i turordning.
+
+Vi stötte på ett problem — BOM-tecken i nginx.conf.j2
+orsakade ett konfigurationsfel. Efter att vi fixat
+encodingen fungerade nginx perfekt.
+
+Slutresultat: nginx skickar trafik växelvis till
+Server 1 och Server 2. Lastbalanseringen är verifierad
+från både control-VM och Windows-webbläsaren via
+http://localhost:8080.
+
+---
+
+### Rollöversikt
+
+```
+nginx-rollen gör tre saker:
+1. Installerar nginx
+2. Distribuerar nginx.conf via Jinja2-mall
+3. Startar och aktiverar nginx-tjänsten
+```
+
+nginx är den enda servern som är nåbar utifrån
+via port forwarding (:80 → host:8080). All trafik
+passerar genom nginx som distribuerar förfrågningar
+till web1 och web2 i round-robin.
+
+### Filöversikt
+
+```
+ansible/
+└── roles/
+    └── nginx/
+        ├── tasks/
+        │   └── main.yml        ✅
+        ├── handlers/
+        │   └── main.yml        ✅
+        └── templates/
+            └── nginx.conf.j2   ✅
+```
+
+---
+
+### Varför detta steg är viktigt
+
+nginx är presentationslagret i vår 3-tier-arkitektur.
+Det är den enda ingångspunkten till systemet utifrån.
+Utan nginx skulle besökare behöva veta exakt vilken
+server de ska ansluta till. Med nginx är det helt
+transparent — besökaren ansluter alltid till samma
+adress och nginx hanterar fördelningen automatiskt.
+
+Lastbalansering ger också redundans — om web1 slutar
+fungera kan nginx fortsätta skicka trafik till web2.
+
+---
+
+### Körda kommandon
+
+#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
+
+```powershell
+# Skapa mappstruktur för nginx-rollen
+PS E:\Secure-Infra-Lab> mkdir ansible\roles\nginx\handlers
+PS E:\Secure-Infra-Lab> mkdir ansible\roles\nginx\templates
+```
+Förväntat output: Inga felmeddelanden.
+Vad vi fick: Mapparna skapades korrekt. ✅
+
+```powershell
+# Öppna rollfilerna i VS Code
+PS E:\Secure-Infra-Lab> code ansible\roles\nginx\tasks\main.yml
+PS E:\Secure-Infra-Lab> code ansible\roles\nginx\handlers\main.yml
+PS E:\Secure-Infra-Lab> code ansible\roles\nginx\templates\nginx.conf.j2
+```
+Förväntat output: VS Code öppnar varje fil.
+Vad vi fick: Filerna öppnades korrekt. ✅
+
+```powershell
+# Konvertera filer till LF och ta bort CRLF
+PS E:\Secure-Infra-Lab> $files = @(
+    "ansible\roles\nginx\handlers\main.yml",
+    "ansible\roles\nginx\templates\nginx.conf.j2",
+    "ansible\roles\nginx\tasks\main.yml"
+)
+foreach ($file in $files) {
+    $content = [System.IO.File]::ReadAllText("E:\Secure-Infra-Lab\$file")
+    $content = $content -replace "`r`n", "`n"
+    [System.IO.File]::WriteAllText("E:\Secure-Infra-Lab\$file", $content, [System.Text.Encoding]::UTF8)
+    Write-Host "Converted: $file"
+}
+```
+Förväntat output: Converted: [filnamn] för varje fil.
+Vad vi fick: Alla filer konverterades korrekt. ✅
+
+```powershell
+# Ladda upp nginx-filer till control-VM
+PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control -c "mkdir -p /home/vagrant/ansible/roles/nginx/handlers /home/vagrant/ansible/roles/nginx/templates"
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\nginx\tasks\main.yml /home/vagrant/ansible/roles/nginx/tasks/main.yml control
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\nginx\handlers\main.yml /home/vagrant/ansible/roles/nginx/handlers/main.yml control
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\nginx\templates\nginx.conf.j2 /home/vagrant/ansible/roles/nginx/templates/nginx.conf.j2 control
+```
+Förväntat output: Upload has completed successfully! för varje fil.
+Vad vi fick: Alla filer laddades upp korrekt. ✅
+
+```powershell
+# Committa och pusha till GitHub
+PS E:\Secure-Infra-Lab> git add ansible/roles/nginx
+PS E:\Secure-Infra-Lab> git commit -m "Add nginx role: reverse proxy, round-robin load balancer"
+PS E:\Secure-Infra-Lab> git push --set-upstream origin feature/nginx-role
+```
+Förväntat output: feature/nginx-role -> feature/nginx-role
+Vad vi fick: Exakt det förväntade. ✅
+
+---
+
+#### Bash — inuti control-servern
+
+```bash
+# Kör playbooken mot nginx
+vagrant@control:~/ansible$ ansible-playbook site.yml --limit nginx_g
+```
+Förväntat output: nginx : ok=14  changed=X  failed=0
+Vad vi fick (först): failed=1 — nginx startade inte ❌
+Fel: nginx: [emerg] unknown directive "﻿#" in flask.conf:5
+Orsak: BOM-tecken i nginx.conf.j2 orsakade tolkningsfel.
+Lösning: Öppnade filen i VS Code och sparade om som UTF-8.
+Vad vi fick slutligen: ok=14  changed=3  failed=0 ✅
+
+```bash
+# Verifiera round-robin lastbalansering
+vagrant@control:~$ for i in 1 2 3 4 5 6; do curl -s http://192.168.56.11/; echo ''; done
+```
+Förväntat output:
+```
+Hello from Server 1!
+Hello from Server 2!
+Hello from Server 1!
+Hello from Server 2!
+Hello from Server 1!
+Hello from Server 2!
+```
+Vad vi fick: Exakt det förväntade — perfekt ping-pong! ✅
+
+```bash
+# Verifiera /visit via nginx
+vagrant@control:~$ for i in 1 2 3 4; do curl -s http://192.168.56.11/visit; echo ''; done
+```
+Förväntat output: Visit registered from Server 1/2 växelvis.
+Vad vi fick: Perfekt växling mellan Server 1 och Server 2. ✅
+
+---
+
+### Konfigurationsfiler
+
+📄 `ansible/roles/nginx/tasks/main.yml`
+**Vad den gör:** Installerar nginx, tar bort
+standardkonfigurationen, distribuerar vår
+konfiguration och aktiverar sajten via en
+symbolisk länk.
+**Varför den finns:** Ingångspunkten för nginx-rollen.
+**Hur vi skrev den:** Vi följde nginx-dokumentationen
+för sites-available/sites-enabled-mönstret.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/nginx-role/ansible/roles/nginx/tasks/main.yml
+**Officiell dokumentation:**
+- nginx: https://nginx.org/en/docs/
+- Ansible file-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/file_module.html
+
+📄 `ansible/roles/nginx/handlers/main.yml`
+**Vad den gör:** Definierar Restart nginx — körs
+bara om konfigurationen faktiskt ändrades.
+**Varför den finns:** Onödiga omstarter av nginx
+i produktion bryter aktiva anslutningar.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/nginx-role/ansible/roles/nginx/handlers/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
+
+📄 `ansible/roles/nginx/templates/nginx.conf.j2`
+**Vad den gör:** Konfigurerar nginx som reverse proxy
+med round-robin lastbalansering. Definierar upstream
+med web1 och web2 på port 5000. Vidarebefordrar
+original HTTP-headers till Flask.
+**Varför den finns:** nginx behöver veta vilka
+bakgrundsservrar som finns och hur trafiken ska
+fördelas.
+**Hur vi skrev den:** Vi följde nginx upstream-
+dokumentationen och lärarens kodmönster med
+proxy_set_header för Host, X-Real-IP och
+X-Forwarded-For.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/nginx-role/ansible/roles/nginx/templates/nginx.conf.j2
+**Officiell dokumentation:** https://nginx.org/en/docs/http/ngx_http_upstream_module.html
+
+---
+
+### Problem och lösningar
+
+**Problem 1 — BOM-tecken i nginx.conf.j2**
+**Felmeddelande:** nginx: [emerg] unknown directive "﻿#" in flask.conf:5
+**Vad som hände:** nginx.conf.j2 sparades med UTF-8
+with BOM trots konverteringen. nginx tolkade
+BOM-tecknet som ett ogiltigt direktiv och vägrade starta.
+**Lösning:** Öppnade filen i VS Code, klickade på
+encoding längst ner och valde "Save with Encoding"
+→ "UTF-8".
+**Lärdomen:** Alltid verifiera encoding för template-filer
+(.j2) — nginx är känsligare för BOM-tecken än YAML.
+
+---
+
+### Teorikoppling
+
+**Koncept 1: Reverse proxy och lastbalansering**
+
+En reverse proxy är en server som tar emot förfrågningar
+från klienter och vidarebefordrar dem till en eller
+flera bakgrundsservrar. Klienten vet inte vilken
+bakgrundsserver som svarar — den ser bara proxyn.
+
+Round-robin är den enklaste lastbalanseringsalgoritmen.
+Förfrågningar skickas i turordning till varje server.
+Förfrågan 1 → web1, förfrågan 2 → web2, förfrågan
+3 → web1 igen, och så vidare.
+
+I det här projektet tar nginx emot all trafik på
+port 80 och fördelar den till web1 (port 5000) och
+web2 (port 5000) i turordning. Det gör att ingen
+enskild server överlastas och systemet fortsätter
+fungera om en server temporärt är nere.
+
+**Officiell dokumentation:**
+- nginx upstream: https://nginx.org/en/docs/http/ngx_http_upstream_module.html
+- nginx reverse proxy: https://nginx.org/en/docs/http/ngx_http_proxy_module.html
+
+**Koncept 2: sites-available och sites-enabled**
+
+Ubuntu nginx använder ett mönster med två mappar:
+`sites-available` innehåller alla konfigurationsfiler.
+`sites-enabled` innehåller symboliska länkar till
+de aktiva konfigurationerna.
+
+Det gör det enkelt att aktivera och inaktivera sajter
+utan att ta bort konfigurationsfiler. Vi skapar
+`flask.conf` i `sites-available` och en symbolisk
+länk i `sites-enabled`.
+
+**Officiell dokumentation:** https://nginx.org/en/docs/beginners_guide.html
+
+**Koncept 3: X-Forwarded-For och proxy-headers**
+
+När nginx vidarebefordrar en förfrågan till Flask
+ser Flask bara nginx IP-adress — inte klientens
+riktiga IP. Med `proxy_set_header X-Forwarded-For`
+skickar nginx med klientens riktiga IP-adress i
+en HTTP-header. Flask kan då läsa den riktiga
+IP-adressen ur headern.
+
+I produktion är detta viktigt för loggning,
+säkerhetsanalys och rate limiting — man vill veta
+vilka riktiga IP-adresser som ansluter, inte bara
+nginx interna IP.
+
+**Officiell dokumentation:** https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header
+
+
