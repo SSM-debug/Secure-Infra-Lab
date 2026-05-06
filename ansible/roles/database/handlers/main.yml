@@ -1,0 +1,6 @@
+---
+# Restart PostgreSQL only when configuration has changed
+- name: Restart postgresql
+  service:
+    name: postgresql
+    state: restarted
