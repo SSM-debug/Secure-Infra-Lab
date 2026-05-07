@@ -1,0 +1,44 @@
+---
+# Download Wazuh installation script
+- name: Download Wazuh install script
+  get_url:
+    url: https://packages.wazuh.com/4.7/wazuh-install.sh
+    dest: /tmp/wazuh-install.sh
+    mode: '0755'
+
+# Install Wazuh indexer
+- name: Install Wazuh indexer
+  shell: bash /tmp/wazuh-install.sh --wazuh-indexer node-1 -i
+  args:
+    creates: /etc/wazuh-indexer
+
+# Install Wazuh manager
+- name: Install Wazuh manager
+  shell: bash /tmp/wazuh-install.sh --wazuh-manager -i
+  args:
+    creates: /var/ossec/bin/wazuh-manager
+
+# Install Wazuh dashboard
+- name: Install Wazuh dashboard
+  shell: bash /tmp/wazuh-install.sh --wazuh-dashboard -i
+  args:
+    creates: /etc/wazuh-dashboard
+
+# Start all Wazuh services
+- name: Start Wazuh indexer
+  service:
+    name: wazuh-indexer
+    state: started
+    enabled: yes
+
+- name: Start Wazuh manager
+  service:
+    name: wazuh-manager
+    state: started
+    enabled: yes
+
+- name: Start Wazuh dashboard
+  service:
+    name: wazuh-dashboard
+    state: started
+    enabled: yes

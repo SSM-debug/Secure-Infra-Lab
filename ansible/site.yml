@@ -54,9 +54,21 @@
   roles:
     - nginx
 
-# ─── Monitor ─────────────────────────────────────────────────
-- name: Configure monitor server
+# ─── Wazuh Manager ───────────────────────────────────────────
+# Install Wazuh Manager and Dashboard on monitor
+- name: Configure Wazuh Manager
   hosts: monitor_g
+  become: true
+  vars_files:
+    - vars/vars.yml
+    - secrets.yml
+  roles:
+    - wazuh_manager
+
+# ─── Wazuh Agent — all servers except monitor ────────────────
+# Install Wazuh Agent on control, nginx, web1, web2, database
+- name: Configure Wazuh agents
+  hosts: control_g:nginx_g:webserver_g:webserver2_g:database_g
   become: true
   vars_files:
     - vars/vars.yml
