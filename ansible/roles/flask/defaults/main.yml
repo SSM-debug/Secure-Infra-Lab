@@ -1,0 +1,3 @@
+---
+# Default server name — overridden per host in host_vars
+server_name: "Server 1"

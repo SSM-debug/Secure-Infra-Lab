@@ -1,44 +1,33 @@
 ---
-# Download Wazuh installation script
-- name: Download Wazuh install script
-  get_url:
-    url: https://packages.wazuh.com/4.7/wazuh-install.sh
-    dest: /tmp/wazuh-install.sh
-    mode: '0755'
-
-# Install Wazuh indexer
-- name: Install Wazuh indexer
-  shell: bash /tmp/wazuh-install.sh --wazuh-indexer node-1 -i
+# Add Wazuh repository
+- name: Add Wazuh GPG key
+  shell: >
+    curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH |
+    gpg --no-default-keyring
+    --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg
+    --import &&
+    chmod 644 /usr/share/keyrings/wazuh.gpg
   args:
-    creates: /etc/wazuh-indexer
+    creates: /usr/share/keyrings/wazuh.gpg
 
-# Install Wazuh manager
+- name: Add Wazuh repository
+  shell: >
+    echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg]
+    https://packages.wazuh.com/4.x/apt/ stable main" |
+    tee /etc/apt/sources.list.d/wazuh.list
+  args:
+    creates: /etc/apt/sources.list.d/wazuh.list
+
+# Install Wazuh manager via apt
 - name: Install Wazuh manager
-  shell: bash /tmp/wazuh-install.sh --wazuh-manager -i
-  args:
-    creates: /var/ossec/bin/wazuh-manager
+  apt:
+    name: wazuh-manager
+    state: present
+    update_cache: yes
 
-# Install Wazuh dashboard
-- name: Install Wazuh dashboard
-  shell: bash /tmp/wazuh-install.sh --wazuh-dashboard -i
-  args:
-    creates: /etc/wazuh-dashboard
-
-# Start all Wazuh services
-- name: Start Wazuh indexer
-  service:
-    name: wazuh-indexer
-    state: started
-    enabled: yes
-
-- name: Start Wazuh manager
+# Start Wazuh manager
+- name: Enable and start Wazuh manager
   service:
     name: wazuh-manager
-    state: started
-    enabled: yes
-
-- name: Start Wazuh dashboard
-  service:
-    name: wazuh-dashboard
     state: started
     enabled: yes
