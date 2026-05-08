@@ -112,7 +112,7 @@ Vagrant.configure("2") do |config|
   end
 
   # ─── monitor (.15) ───────────────────────────────────────
-  # Wazuh Manager + Dashboard — needs 2 GB RAM
+  # Wazuh Manager + Cockpit Dashboard — needs 2 GB RAM
   config.vm.define "monitor" do |monitor|
     monitor.vm.hostname = "monitor"
     monitor.vm.network "private_network", ip: MONITOR_IP

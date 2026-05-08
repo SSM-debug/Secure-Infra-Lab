@@ -1,5 +1,5 @@
 ---
-# Add Wazuh GPG key
+# Add Wazuh GPG key and repository
 - name: Add Wazuh GPG key
   shell: >
     curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH |
@@ -32,7 +32,8 @@
     state: started
     enabled: yes
 
-# Install Cockpit — web-based dashboard for system monitoring
+# Install Cockpit — lightweight web dashboard for system monitoring
+# Access via https://localhost:9090
 - name: Install Cockpit
   apt:
     name: cockpit
