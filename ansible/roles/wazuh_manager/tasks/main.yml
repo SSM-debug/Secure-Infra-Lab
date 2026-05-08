@@ -1,5 +1,5 @@
 ---
-# Add Wazuh repository
+# Add Wazuh GPG key
 - name: Add Wazuh GPG key
   shell: >
     curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH |
@@ -18,7 +18,7 @@
   args:
     creates: /etc/apt/sources.list.d/wazuh.list
 
-# Install Wazuh manager via apt
+# Install Wazuh manager
 - name: Install Wazuh manager
   apt:
     name: wazuh-manager
@@ -29,5 +29,19 @@
 - name: Enable and start Wazuh manager
   service:
     name: wazuh-manager
+    state: started
+    enabled: yes
+
+# Install Cockpit — web-based dashboard for system monitoring
+- name: Install Cockpit
+  apt:
+    name: cockpit
+    state: present
+    update_cache: yes
+
+# Start Cockpit
+- name: Enable and start Cockpit
+  service:
+    name: cockpit
     state: started
     enabled: yes
