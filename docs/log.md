@@ -2198,3 +2198,458 @@ nginx interna IP.
 **Officiell dokumentation:** https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header
 
 
+---
+
+## Fas 7 — wazuh_manager och wazuh_agent-rollerna
+**Datum:** 2026-05-07
+**Git-commits:**
+- `Add port forwarding 443->8443 for Wazuh Dashboard on monitor`
+- `Add wazuh_manager and wazuh_agent roles, fix flask defaults`
+
+### Vad vi gjorde
+
+Vi installerade Wazuh på hela infrastrukturen.
+Wazuh är ett säkerhetsverktyg som håller koll på
+alla servrar och varnar när något misstänkt händer.
+
+Fas 7 består av två delar:
+- Wazuh Manager installerades på monitor-servern.
+  Den tar emot information från alla andra servrar.
+- Wazuh Agent installerades på de fem andra servrarna.
+  Varje agent skickar säkerhetshändelser till Manager.
+
+Vi lade också till port forwarding i Vagrantfilen
+så att Wazuh API går att nå från Windows-datorn.
+
+Slutresultat: Wazuh Manager körs på monitor och
+Wazuh Agent körs på alla fem andra servrar.
+Hela playbooken ger `failed=0` på alla sex servrar
+utan varningar.
+
+---
+
+### Vad är Wazuh och hur fungerar det?
+
+Wazuh är ett verktyg som övervakar säkerheten på
+dina servrar. Tänk på det som ett larmsystem:
+
+```
+Wazuh Agent   = Rörelsedetektor i varje rum
+Wazuh Manager = Larmpanelen som samlar alla signaler
+Wazuh API     = Skärmen där du ser vad som händer
+```
+
+Wazuh håller koll på:
+- Vem som loggar in och ut på servrarna
+- Om viktiga filer ändras (t.ex. /etc/passwd)
+- Om någon försöker logga in med fel lösenord många gånger
+- Om det finns kända säkerhetsproblem i installerade program
+
+Wazuh arbetar på två sätt:
+- I bakgrunden — kontrollerar loggar var femte sekund
+- I realtid — skickar varning direkt om något allvarligt händer
+
+Det betyder att om någon försöker ta sig in på en
+server ser vi det i Wazuh inom sekunder.
+
+---
+
+### Rollöversikt
+
+```
+Fas 7 består av två delar:
+
+Del 1 — wazuh_manager (körs på monitor .15):
+1. Lägger till Wazuh i systemets paketlista
+2. Installerar wazuh-manager
+3. Startar och aktiverar Wazuh Manager-tjänsten
+
+Del 2 — wazuh_agent (körs på control, nginx, web1, web2, database):
+1. Lägger till Wazuh i systemets paketlista
+2. Installerar wazuh-agent
+3. Talar om för agenten var Manager finns (monitor .15)
+4. Startar och aktiverar agent-tjänsten
+```
+
+### Filöversikt
+
+```
+ansible/
+└── roles/
+    ├── wazuh_manager/
+    │   └── tasks/
+    │       └── main.yml        ✅
+    │
+    └── wazuh_agent/
+        └── tasks/
+            └── main.yml        ✅
+
+ansible/
+└── site.yml                    ✅ (uppdaterad)
+
+vagrant/
+└── Vagrantfile                 ✅ (port forwarding tillagd)
+```
+
+---
+
+### Varför detta steg är viktigt
+
+Utan Wazuh är infrastrukturen blind. Vi vet inte
+vad som händer på servrarna. Med Wazuh får vi
+full översikt över alla säkerhetshändelser på
+ett ställe.
+
+Det här är ett konkret svar på frågan:
+"Vad händer om web1 komprometteras?"
+
+```
+Angriparen tar sig in på web1
+    ↓
+Wazuh Agent på web1 märker:
+  - Att viktiga filer ändrats
+  - Att ovanliga program startats
+  - Att misstänkta nätverksanslutningar skapats
+    ↓
+Varning skickas till Wazuh Manager på monitor
+    ↓
+Vi ser attacken i realtid
+```
+
+Det är Defense-in-Depth i praktiken. fail2ban
+stoppar brute-force-attacker. SSH-härdning
+blockerar lösenordsinloggning. auditd loggar
+systemhändelser. Wazuh samlar allt och visar
+det på ett ställe.
+
+---
+
+### Varför vi använder shell-modulen istället för apt direkt
+
+Wazuh finns inte i Ubuntus standardpaketlista.
+Vi måste först lägga till Wazuh i systemets
+paketlista — det kräver kommandon som `curl`
+och `gpg`.
+
+Normalt installerar vi paket så här i Ansible:
+
+```yaml
+- name: Installera nginx
+  apt:
+    name: nginx
+    state: present
+```
+
+Det fungerar inte för Wazuh direkt eftersom
+paketet inte finns i Ubuntus lista från början.
+Därför måste vi använda `shell`-modulen för att
+lägga till Wazuh's egna paketlista först.
+
+För att ändå behålla idempotens använder vi
+`args: creates:` — det säger till Ansible:
+"kör bara det här kommandot om den här filen
+inte redan finns":
+
+```yaml
+- name: Lägg till Wazuh GPG-nyckel
+  shell: curl ... | gpg --import
+  args:
+    creates: /usr/share/keyrings/wazuh.gpg
+```
+
+Om filen redan finns hoppar Ansible över steget.
+Det betyder att kommandot bara körs en gång —
+aldrig om.
+
+---
+
+### Körda kommandon
+
+#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
+
+```powershell
+# Skapa mappstruktur för wazuh_manager och wazuh_agent
+# Varför: Ansible kräver att tasks/-mappen finns
+PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_manager/tasks"
+PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_manager/vars"
+PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_manager/handlers"
+PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_manager/templates"
+PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_agent/tasks"
+PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_agent/vars"
+PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_agent/handlers"
+```
+Förväntat output: Mapparna skapas utan felmeddelanden.
+Vad vi fick: Alla mappar skapades korrekt. ✅
+Obs: wazuh_agent/tasks fanns redan som platshållare — ofarligt.
+
+```powershell
+# Lägg till port forwarding för Wazuh API i Vagrantfilen
+# Varför: Wazuh API körs på port 443 på monitor-servern
+# Med port forwarding når vi den via https://localhost:8443
+PS E:\Secure-Infra-Lab> code vagrant\Vagrantfile
+```
+Tillägg i monitor-blocket:
+```ruby
+monitor.vm.network "forwarded_port", guest: 443, host: 8443
+```
+Förväntat output: Ändringen sparas utan fel.
+Vad vi fick: Filen sparades korrekt. ✅
+
+```powershell
+# Starta om monitor med den uppdaterade Vagrantfilen
+# Varför: Port forwarding aktiveras inte förrän
+# monitor startas om med den nya konfigurationen
+PS E:\Secure-Infra-Lab\vagrant> vagrant reload monitor
+```
+Förväntat output: Machine booted and ready! med port 443→8443.
+Vad vi fick: Exakt det förväntade. ✅
+
+```powershell
+# Ladda upp alla Wazuh-filer till control-servern
+PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control -c "mkdir -p /home/vagrant/ansible/roles/wazuh_manager/tasks /home/vagrant/ansible/roles/wazuh_agent/tasks"
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\wazuh_manager\tasks\main.yml /home/vagrant/ansible/roles/wazuh_manager/tasks/main.yml control
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\wazuh_agent\tasks\main.yml /home/vagrant/ansible/roles/wazuh_agent/tasks/main.yml control
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\site.yml /home/vagrant/ansible/site.yml control
+PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\flask\defaults\main.yml /home/vagrant/ansible/roles/flask/defaults/main.yml control
+```
+Förväntat output: Upload has completed successfully! för varje fil.
+Vad vi fick: Alla filer laddades upp korrekt. ✅
+
+```powershell
+# Committa och pusha till GitHub
+PS E:\Secure-Infra-Lab> git add ansible/roles/wazuh_manager ansible/roles/wazuh_agent ansible/roles/flask/defaults ansible/site.yml vagrant/Vagrantfile
+PS E:\Secure-Infra-Lab> git commit -m "Add wazuh_manager and wazuh_agent roles, fix flask defaults"
+PS E:\Secure-Infra-Lab> git push
+```
+Förväntat output: feature/wazuh-role -> feature/wazuh-role
+Vad vi fick: Exakt det förväntade. ✅
+
+---
+
+#### Bash — inuti control-servern
+
+```bash
+# Kontrollera att SSH-nyckeln finns på monitor
+vagrant@control:~$ ssh-copy-id -o StrictHostKeyChecking=no vagrant@192.168.56.15
+```
+Förväntat output: 1 key(s) installed.
+Vad vi fick: All keys were skipped — nyckeln fanns redan. ✅
+
+```bash
+# Kör Wazuh Manager på monitor
+# Varför --limit monitor_g: Vi kör bara mot monitor
+# för att testa innan vi kör mot alla
+vagrant@control:~/ansible$ ansible-playbook site.yml --limit monitor_g
+```
+Förväntat output: monitor : ok=12  changed=4  failed=0
+Vad vi fick (först): failed=1 ❌
+Orsak: Wazuh 4.7 installationsskript kräver en
+config-fil och ett extra steg innan installation.
+Det är designat för stora kluster med många servrar.
+Lösning: Bytte till enklare apt-installation via
+Wazuh's eget paketförråd istället för deras
+installationsskript.
+Vad vi fick slutligen: ok=12  changed=4  failed=0 ✅
+
+```bash
+# Kör Wazuh Agent på alla andra servrar
+vagrant@control:~/ansible$ ansible-playbook site.yml --limit control_g:nginx_g:webserver_g:webserver2_g:database_g
+```
+Förväntat output: failed=0 för alla fem servrar.
+Vad vi fick (först): web1 failed=1 ❌
+Orsak: flask/defaults/main.yml saknades på
+control-servern. Ansible kunde inte hitta
+server_name-variabeln för Flask-applikationen.
+Lösning: Skapade flask/defaults/main.yml med
+server_name: "Server 1" och laddade upp.
+Vad vi fick slutligen: failed=0 på alla fem. ✅
+
+```bash
+# Verifiera att Wazuh Agent körs på control
+vagrant@control:~$ sudo systemctl status wazuh-agent --no-pager
+```
+Förväntat output: active (running)
+Vad vi fick: active (running) ✅
+
+```bash
+# Verifiera att Wazuh Manager körs på monitor
+vagrant@monitor:~$ sudo systemctl status wazuh-manager --no-pager
+```
+Förväntat output: active (running)
+Vad vi fick: active (running) sedan 1h 46min ✅
+
+```bash
+# Kör hela playbooken — kontrollera att allt fungerar
+vagrant@control:~/ansible$ ansible-playbook site.yml
+```
+Förväntat output: failed=0 på alla sex servrar.
+Vad vi fick:
+```
+control   ok=12  changed=1  failed=0  ✅
+database  ok=26  changed=2  failed=0  ✅
+monitor   ok=12  changed=1  failed=0  ✅
+nginx     ok=18  changed=1  failed=0  ✅
+web1      ok=20  changed=1  failed=0  ✅
+web2      ok=20  changed=1  failed=0  ✅
+```
+Inga varningar. Idempotens bekräftad. ✅
+
+---
+
+### Konfigurationsfiler
+
+📄 `ansible/roles/wazuh_manager/tasks/main.yml`
+**Vad den gör:** Lägger till Wazuh i systemets
+paketlista, installerar wazuh-manager och startar
+tjänsten.
+**Varför den finns:** Wazuh Manager är den centrala
+servern som tar emot data från alla agenter.
+Utan den har vi ingen central övervakning.
+**Hur vi skrev den:** Vi följde Wazuh officiell
+dokumentation för installation via apt-paket.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/wazuh-role/ansible/roles/wazuh_manager/tasks/main.yml
+**Officiell dokumentation:** https://documentation.wazuh.com/current/installation-guide/wazuh-manager/step-by-step.html
+
+📄 `ansible/roles/wazuh_agent/tasks/main.yml`
+**Vad den gör:** Lägger till Wazuh i systemets
+paketlista, installerar wazuh-agent med adressen
+till Manager (monitor .15) och startar agenten.
+**Varför den finns:** Varje server behöver en agent
+för att skicka säkerhetshändelser till Manager.
+Utan agenter ser Manager ingenting.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/wazuh-role/ansible/roles/wazuh_agent/tasks/main.yml
+**Officiell dokumentation:** https://documentation.wazuh.com/current/installation-guide/wazuh-agent/index.html
+
+📄 `ansible/roles/flask/defaults/main.yml`
+**Vad den gör:** Standardvärden för flask-rollen.
+Sätter server_name till "Server 1" som standard.
+web2 åsidosätter detta via host_vars/web2.yml.
+**Varför den finns:** Ansible behöver veta vad
+server_name är. defaults-mappen har lägst prioritet
+och åsidosätts enkelt av host_vars.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/wazuh-role/ansible/roles/flask/defaults/main.yml
+
+📄 `vagrant/Vagrantfile` (uppdaterad)
+**Vad den gör:** Port forwarding 443→8443 för
+monitor-servern. Det gör att Wazuh API går att
+nå från Windows-datorn via https://localhost:8443.
+**Varför den uppdaterades:** Utan port forwarding
+är Wazuh API bara nåbar inifrån det privata
+nätverket — inte från Windows-datorn.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/wazuh-role/vagrant/Vagrantfile
+
+---
+
+### Problem och lösningar
+
+**Problem 1 — Wazuh installationsskript krävde config-fil**
+**Felmeddelande:** Cannot find /tmp/wazuh-install-files.tar
+**Vad som hände:** Vi försökte använda Wazuh's
+officiella installationsskript. Det visade sig att
+skriptet är designat för stora system med många
+servrar — inte för ett enda litet system som vårt.
+Det krävde en config-fil och extra steg som inte
+behövs i vår miljö.
+**Lösning:** Vi bytte till ett enklare sätt —
+installerade direkt via apt från Wazuh's eget
+paketförråd. Det är enklare, fungerar bättre för
+oss och är fortfarande idempotent.
+**Lärdomen:** Kontrollera alltid om det finns ett
+enklare installationssätt via apt innan du använder
+ett leverantörs installationsskript.
+
+**Problem 2 — server_name variabeln hittades inte**
+**Felmeddelande:** AnsibleUndefinedVariable: 'server_name' is undefined
+**Vad som hände:** Flask-rollen försökte använda
+variabeln server_name men hittade den inte.
+Filen flask/defaults/main.yml saknades på
+control-servern.
+**Lösning:** Skapade flask/defaults/main.yml med
+server_name: "Server 1" och laddade upp till
+control-servern.
+**Lärdomen:** När en variabel används i en roll
+måste den definieras i antingen defaults/main.yml,
+vars/main.yml eller host_vars. Annars kraschar
+Ansible med "undefined variable".
+
+---
+
+### Teorikoppling
+
+**Koncept 1: Vad är SIEM och HIDS?**
+
+SIEM betyder Security Information and Event Management.
+Det samlar säkerhetsinformation från alla servrar
+på ett ställe. Istället för att logga in på varje
+server för att kolla loggar ser du allt på en skärm.
+
+HIDS betyder Host-based Intrusion Detection System.
+Det övervakar varje server och letar efter tecken
+på att någon försöker ta sig in.
+
+Wazuh kombinerar båda. Det är som att ha en
+väktare på varje server som rapporterar till en
+central ledningscentral.
+
+I vårt projekt skickar agenter på alla fem servrar
+händelser till Manager på monitor. Om någon
+försöker SSH-brute-force mot nginx syns det
+direkt i Wazuh.
+
+**Officiell dokumentation:** https://documentation.wazuh.com/
+
+**Koncept 2: Hotmodellering**
+
+Hotmodellering handlar om att tänka igenom vad
+som kan gå fel och hur systemet ska reagera.
+
+En viktig fråga är: "Vad händer om web1
+komprometteras?"
+
+Med Wazuh på plats kan vi svara konkret:
+
+```
+Angriparen tar sig in på web1
+    ↓
+Wazuh Agent på web1 märker:
+  - Att viktiga filer ändrats
+  - Att ovanliga program startats
+  - Att misstänkta nätverksanslutningar skapats
+    ↓
+Varning skickas till Wazuh Manager på monitor
+    ↓
+Vi ser attacken i realtid
+```
+
+Det är Defense-in-Depth i praktiken. Varje
+skyddslager kompenserar om ett annat bryts:
+- fail2ban stoppar brute-force-attacker
+- SSH-härdning blockerar lösenordsinloggning
+- auditd loggar systemhändelser
+- Wazuh samlar allt och visar det på ett ställe
+
+**Officiell dokumentation:** https://documentation.wazuh.com/current/getting-started/use-cases/index.html
+
+**Koncept 3: Idempotens med shell-modulen**
+
+shell-modulen i Ansible kör ett kommando varje
+gång playbooken körs. Det bryter mot principen
+om idempotens — att samma operation ska ge samma
+resultat oavsett hur många gånger den körs.
+
+Vi löser det med `args: creates:`. Det anger en
+fil som bara skapas vid första körningen:
+
+```yaml
+- name: Lägg till Wazuh GPG-nyckel
+  shell: curl ... | gpg --import
+  args:
+    creates: /usr/share/keyrings/wazuh.gpg
+```
+
+Om filen `/usr/share/keyrings/wazuh.gpg` redan
+finns hoppar Ansible över det här steget. Det
+betyder att kommandot bara körs en gång — aldrig
+om. Det ger oss idempotens även med shell-kommandon.
+
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
