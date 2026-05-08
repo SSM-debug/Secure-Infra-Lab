@@ -1,0 +1,7 @@
+﻿---
+# Wazuh Manager variables
+wazuh_manager_port: 1514
+wazuh_registration_port: 1515
+wazuh_api_port: 55000
+wazuh_rules_dir: /var/ossec/ruleset/rules
+wazuh_alerts_log: /var/ossec/logs/alerts/alerts.log

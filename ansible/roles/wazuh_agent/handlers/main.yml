@@ -1,0 +1,6 @@
+﻿---
+# Restart Wazuh Agent when configuration changes
+- name: Restart wazuh-agent
+  service:
+    name: wazuh-agent
+    state: restarted

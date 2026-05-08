@@ -1,4 +1,4 @@
-﻿---
+---
 # ─── Security hardening — all servers ───────────────────────
 # Run first — harden every VM before installing services
 - name: Apply security hardening to all servers
@@ -64,6 +64,7 @@
     - secrets.yml
   roles:
     - wazuh_manager
+    - cockpit
 
 # ─── Wazuh Agent — all servers except monitor ────────────────
 # Install Wazuh Agent on control, nginx, web1, web2, database

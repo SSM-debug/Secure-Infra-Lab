@@ -1,0 +1,6 @@
+﻿---
+# Restart Cockpit when configuration changes
+- name: Restart cockpit
+  service:
+    name: cockpit
+    state: restarted

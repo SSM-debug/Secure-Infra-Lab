@@ -1,0 +1,6 @@
+﻿---
+# Restart Wazuh Manager when configuration changes
+- name: Restart wazuh-manager
+  service:
+    name: wazuh-manager
+    state: restarted

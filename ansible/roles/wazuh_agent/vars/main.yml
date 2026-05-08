@@ -1,0 +1,5 @@
+﻿---
+# Wazuh Agent variables
+wazuh_manager_ip: "{{ monitor_ip }}"
+wazuh_agent_port: 1514
+wazuh_registration_port: 1515

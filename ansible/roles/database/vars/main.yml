@@ -1,0 +1,5 @@
+﻿---
+# Database role variables
+postgresql_port: 5432
+postgresql_data_dir: /var/lib/postgresql/14/main
+postgresql_config_dir: /etc/postgresql/14/main

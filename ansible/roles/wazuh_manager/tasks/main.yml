@@ -31,18 +31,3 @@
     name: wazuh-manager
     state: started
     enabled: yes
-
-# Install Cockpit — lightweight web dashboard for system monitoring
-# Access via https://localhost:9090
-- name: Install Cockpit
-  apt:
-    name: cockpit
-    state: present
-    update_cache: yes
-
-# Start Cockpit
-- name: Enable and start Cockpit
-  service:
-    name: cockpit
-    state: started
-    enabled: yes
