@@ -14,7 +14,7 @@ med — även den som inte jobbat med projektet tidigare.
 
 ---
 
-## Fas 1 — Vagrantfile och VM-uppstart
+## Fas 1 - Vagrantfile och VM-uppstart
 **Datum:** 2026-05-02
 **Git-commits:**
 - `Initial structure: Vagrantfile for 6 VMs`
@@ -22,21 +22,18 @@ med — även den som inte jobbat med projektet tidigare.
 
 ### Vad vi gjorde
 
-Vi började från noll. Först skapade vi en projektmapp
-på Windows och kopplade den till Git. Sedan skrev vi
-en Vagrantfile som beskriver alla sex servrar som kod.
-Vi skapade ett GitHub-repository och publicerade
-projektet där.
+Vi skapade projektmappen på E-disken, initierade Git
+och designade en Vagrantfile som beskriver alla sex
+servrar - IP-adresser, RAM, CPU och provisionerings-
+skript för varje server.
 
-När vi startade control-servern för första gången
-märkte vi att Ansible-versionen som installerades var
-för gammal. Vi fixade det direkt i Vagrantfilen.
+När vi startade servrarna installerades Ansible 2.10.8
+via apt på control - för gammal version. Vi uppdaterade
+Vagrantfilen till att installera Ansible via pip och
+startade om control.
 
-Vi skapade också en `.gitignore`-fil för att hindra
-känsliga filer från att hamna på GitHub av misstag.
-
-Till slut startade vi alla sex servrar en i taget och
-kontrollerade att alla var uppe och körde.
+Vi skapade också `.gitignore` för att hindra SSH-nycklar
+och interna Vagrant-filer från att publiceras på GitHub.
 
 ---
 
@@ -46,7 +43,7 @@ kontrollerade att alla var uppe och körde.
 Fas 1 skapar grunden för hela projektet:
 1. Skapar projektmappen och initierar Git
 2. Bygger mappstrukturen för hela projektet
-3. Skriver Vagrantfilen som beskriver alla 6 VMs
+3. Designar Vagrantfilen för alla 6 VMs
 4. Kopplar projektet till GitHub
 5. Startar alla 6 VMs och verifierar att de körs
 ```
@@ -55,30 +52,38 @@ Fas 1 skapar grunden för hela projektet:
 
 ```
 Secure-Infra-Lab/
-├── .gitattributes              ✅
 ├── .gitignore                  ✅
 ├── docs/                       ✅
+├── scripts/                    ✅
 ├── vagrant/
 │   └── Vagrantfile             ✅
 └── ansible/
-    ├── roles/
-    │   ├── security_hardening/ (platshållare)
-    │   ├── flask/              (platshållare)
-    │   ├── nginx/              (platshållare)
-    │   ├── database/           (platshållare)
-    │   └── wazuh_agent/        (platshållare)
-    └── vars/
+    ├── ansible.cfg             (platshållare)
+    ├── inventory.ini           (platshållare)
+    ├── site.yml                (platshållare)
+    ├── vars/
+    │   └── vars.yml            (platshållare)
+    ├── host_vars/
+    │   └── web2.yml            (platshållare)
+    └── roles/
+        ├── security_hardening/ (platshållare)
+        ├── flask/              (platshållare)
+        ├── nginx/              (platshållare)
+        ├── database/           (platshållare)
+        ├── wazuh_manager/      (platshållare)
+        ├── wazuh_agent/        (platshållare)
+        └── cockpit/            (platshållare)
 ```
-
 
 ### Varför detta steg är viktigt
 
-Vagrantfilen är grunden för hela projektet. Utan den
-måste varje server skapas och konfigureras manuellt —
-ett tidskrävande arbete som lätt leder till
-inkonsistenser. Med Vagrantfilen beskrivs alla sex
-servrar som kod och kan återskapas identiskt med
-ett enda kommando. Det är principen bakom
+Utan Vagrantfilen måste varje server skapas manuellt.
+Det tar tid och resultatet blir aldrig exakt likadant
+två gånger.
+
+Med Vagrantfilen beskrivs hela infrastrukturen som kod.
+`vagrant up` skapar identiska servrar varje gång - på
+vilken dator som helst. Det är principen bakom
 Infrastructure-as-Code som används i alla moderna
 driftmiljöer.
 
@@ -86,113 +91,71 @@ driftmiljöer.
 
 ### Körda kommandon
 
-#### PowerShell — Windows-värddatorn
+#### Windows - PowerShell
 
 ```powershell
 # Skapa projektmappen på E-disken
-# Varför E:\ och inte C:\: Vagrant och VirtualBox
-# fungerar bättre med korta sökvägar utan mellanslag
-PS C:\> mkdir E:\Secure-Infra-Lab
-PS C:\> cd E:\Secure-Infra-Lab
+cd E:\
+E:\> mkdir Secure-Infra-Lab
+E:\> cd Secure-Infra-Lab
 ```
-Förväntat output: Mappen skapas utan felmeddelanden.
-Vad vi fick: Mappen skapades korrekt ✅
+Mappen skapades på E-disken ✅
 
 ```powershell
-# Starta Git-versionshantering i mappen
-# Varför: Vi vill spåra alla ändringar och kunna
-# gå tillbaka till tidigare versioner
-PS E:\Secure-Infra-Lab> git init
+# Initiera Git och koppla till GitHub
+E:\Secure-Infra-Lab> git init
+E:\Secure-Infra-Lab> git remote add origin https://github.com/SSM-debug/Secure-Infra-Lab.git
 ```
-Förväntat output: `Initialized empty Git repository in E:/Secure-Infra-Lab/.git/`
-Vad vi fick: Exakt det förväntade ✅
+Git initierades och kopplades till GitHub ✅
 
 ```powershell
-# Skapa hela mappstrukturen i ett kommando
-# Varför: Bättre att ha strukturen klar från början
-# än att skapa mappar efterhand — ger en tydlig
-# överblick över projektets organisation direkt
-PS E:\Secure-Infra-Lab> mkdir vagrant, ansible\roles\security_hardening, `
-      ansible\roles\flask, ansible\roles\nginx, `
-      ansible\roles\database, ansible\roles\wazuh_agent, `
-      ansible\vars, docs
+# Skapa hela mappstrukturen
+E:\Secure-Infra-Lab> mkdir vagrant, docs, scripts
+E:\Secure-Infra-Lab> mkdir ansible\vars, ansible\host_vars
+E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening
+E:\Secure-Infra-Lab> mkdir ansible\roles\flask
+E:\Secure-Infra-Lab> mkdir ansible\roles\nginx
+E:\Secure-Infra-Lab> mkdir ansible\roles\database
+E:\Secure-Infra-Lab> mkdir ansible\roles\wazuh_manager
+E:\Secure-Infra-Lab> mkdir ansible\roles\wazuh_agent
+E:\Secure-Infra-Lab> mkdir ansible\roles\cockpit
 ```
-Förväntat output: Inga felmeddelanden.
-Vad vi fick: Alla mappar skapades korrekt ✅
+Alla mappar skapades utan felmeddelanden ✅
 
 ```powershell
-# Öppna Vagrantfilen i VS Code och klistra in innehållet
-# Varför VS Code: Säkrare och mer pålitligt än att
-# skriva direkt i terminalen för längre filer
-PS E:\Secure-Infra-Lab> code vagrant\Vagrantfile
+# Skapa och konfigurera Vagrantfilen i VS Code
+E:\Secure-Infra-Lab> code vagrant\Vagrantfile
 ```
-Förväntat output: VS Code öppnar en tom fil.
-Vad vi fick: Filen öppnades korrekt ✅
+Vagrantfilen skapades och konfigurerades i VS Code ✅
 
 ```powershell
-# Spara nuläget i Git — första commit
-PS E:\Secure-Infra-Lab> git add .
-PS E:\Secure-Infra-Lab> git commit -m "Initial structure: Vagrantfile for 6 VMs"
+# Första commit och push till GitHub
+E:\Secure-Infra-Lab> git add .
+E:\Secure-Infra-Lab> git commit -m "Initial structure: Vagrantfile for 6 VMs"
+E:\Secure-Infra-Lab> git push -u origin main
 ```
-Förväntat output:
-```
-[main (root-commit) xxxxxxx] Initial structure: Vagrantfile for 6 VMs
- 1 file changed, 126 insertions(+)
-```
-Vad vi fick: Exakt det förväntade ✅
+Projektet publicerades på GitHub ✅
 
 ```powershell
-# Koppla lokalt repo till GitHub och publicera
-PS E:\Secure-Infra-Lab> git remote add origin https://github.com/SSM-debug/Secure-Infra-Lab.git
-PS E:\Secure-Infra-Lab> git push -u origin main
+# Starta alla servrar
+# Vagrant kräver att man står i mappen med Vagrantfilen
+cd E:\Secure-Infra-Lab\vagrant
+E:\Secure-Infra-Lab\vagrant> vagrant up
 ```
-Förväntat output: `Branch 'main' set up to track remote branch 'main' from 'origin'.`
-Vad vi fick: Exakt det förväntade ✅
+control visade `ansible 2.10.8` - för gammal version ❌
+Se Problem 1 nedan.
 
 ```powershell
-# Gå in i vagrant-mappen — vagrant up kräver att
-# Vagrantfilen finns i aktuell mapp
-PS E:\Secure-Infra-Lab> cd vagrant
-
-# Starta control-servern först
-# Varför en i taget: Om något går fel vet vi
-# exakt vilken server som krånglar
-PS E:\Secure-Infra-Lab\vagrant> vagrant up control
+# Starta om control med uppdaterad Vagrantfile
+# --provision tvingar provisioner-skriptet att köra igen
+E:\Secure-Infra-Lab\vagrant> vagrant reload --provision control
 ```
-Förväntat output på slutet: `=== control: ready ===`
-Vad vi fick: `ansible 2.10.8` — för gammal version ❌
-Fel vi fick: Ansible 2.10.8 från apt är föråldrad
-och saknar stöd för moduler vi behöver.
-Hur vi löste det: Uppdaterade Vagrantfilens
-provisioner-skript för control att installera
-Ansible via `pip3 install ansible` istället för
-`apt-get install ansible`.
+`ansible [core 2.17.14]` installerades korrekt ✅
 
 ```powershell
-# Starta om control med den uppdaterade Vagrantfilen
-# --provision: Tvingar provisioner-skriptet att köra
-# igen även om servern redan startats tidigare
-PS E:\Secure-Infra-Lab\vagrant> vagrant reload --provision control
+# Verifiera att alla servrar är uppe
+E:\Secure-Infra-Lab\vagrant> vagrant status
 ```
-Förväntat output på slutet: `=== control: ready ===`
-Vad vi fick: `ansible [core 2.17.14]` ✅
-
-```powershell
-# Starta resterande servrar en i taget
-PS E:\Secure-Infra-Lab\vagrant> vagrant up nginx
-PS E:\Secure-Infra-Lab\vagrant> vagrant up web1
-PS E:\Secure-Infra-Lab\vagrant> vagrant up web2
-PS E:\Secure-Infra-Lab\vagrant> vagrant up database
-PS E:\Secure-Infra-Lab\vagrant> vagrant up monitor
-```
-Förväntat output för varje server: `=== [servernamn]: ready ===`
-Vad vi fick: Alla servrar startade korrekt ✅
-
-```powershell
-# Kontrollera att alla servrar är uppe
-PS E:\Secure-Infra-Lab\vagrant> vagrant status
-```
-Förväntat output:
 ```
 control     running (virtualbox)
 nginx       running (virtualbox)
@@ -201,53 +164,38 @@ web2        running (virtualbox)
 database    running (virtualbox)
 monitor     running (virtualbox)
 ```
-Vad vi fick: Exakt det förväntade ✅
+Alla sex servrar körde korrekt ✅
 
 ```powershell
-# Gå tillbaka till projektmappen för Git-kommandon
-PS E:\Secure-Infra-Lab\vagrant> cd ..
-
-# Fixa .gitignore — hindra känsliga filer från GitHub
-# Varför: vagrant/.vagrant/ innehåller SSH-nycklar
-# och intern Vagrant-metadata som aldrig ska publiceras
-PS E:\Secure-Infra-Lab> git rm -r --cached vagrant/.vagrant/
-PS E:\Secure-Infra-Lab> git add .gitignore vagrant/Vagrantfile
-PS E:\Secure-Infra-Lab> git commit -m "Add .gitignore and fix control provisioner: install Ansible via pip instead of apt"
-PS E:\Secure-Infra-Lab> git push
+# Skapa .gitignore och ta bort spårade Vagrant-filer
+cd E:\Secure-Infra-Lab
+E:\Secure-Infra-Lab> git rm -r --cached vagrant\.vagrant\
+E:\Secure-Infra-Lab> git add .
+E:\Secure-Infra-Lab> git commit -m "Add .gitignore and fix control provisioner: install Ansible via pip instead of apt"
+E:\Secure-Infra-Lab> git push
 ```
-Förväntat output: Commit bekräftas utan felmeddelanden.
-Vad vi fick: Exakt det förväntade ✅
+Commit bekräftades utan felmeddelanden ✅
 
 ---
 
 ### Konfigurationsfiler
 
 📄 `vagrant/Vagrantfile`
-**Vad den gör:** Beskriver alla sex servrar som kod —
-IP-adresser, RAM, CPU och provisionerings-skript.
-Vagrant läser filen och skapar infrastrukturen
-automatiskt.
-**Varför den finns:** Med den här filen kan vi köra
-`vagrant up` och få exakt samma sex servrar varje
-gång — på vilken dator som helst.
-**Hur vi skrev den:** Vi identifierade varje servers
-krav (IP, RAM, roll) och använde Vagrants officiella
-dokumentation för syntax och provisionering.
+**Vad den gör:** Beskriver alla sex servrar som kod.
+Definierar IP-adresser, RAM, CPU och provisionerings-
+skript för varje server.
+**Varför den finns:** Hela infrastrukturen återskapas
+identiskt med `vagrant up` - på vilken dator som helst.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/vagrant/Vagrantfile
 **Officiell dokumentation:** https://developer.hashicorp.com/vagrant/docs/vagrantfile
 
 📄 `.gitignore`
-**Vad den gör:** Talar om för Git vilka filer som ska
-ignoreras. Vi ignorerar `vagrant/.vagrant/`
-(SSH-nycklar och Vagrant-metadata) och
-`vagrant/secrets.yml` (databasuppgifter).
-**Varför den finns:** Om SSH-nycklar eller lösenord
-publiceras till GitHub är de komprometterade för
-alltid — även om man tar bort dem efteråt finns
-de kvar i Git-historiken.
-**Hur vi skrev den:** Vi identifierade alla filer
-som innehåller känslig information och lade till
-dem i .gitignore.
+**Vad den gör:** Ignorerar `vagrant/.vagrant/` och
+`vagrant/secrets.yml` så att de aldrig publiceras.
+**Varför den finns:** SSH-nycklar och lösenord som
+hamnar på GitHub är komprometterade för alltid -
+även om man tar bort dem efteråt finns de kvar i
+Git-historiken.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/.gitignore
 **Officiell dokumentation:** https://git-scm.com/docs/gitignore
 
@@ -255,31 +203,20 @@ dem i .gitignore.
 
 ### Problem och lösningar
 
-**Problem 1 — Ansible 2.10.8 för gammal**
+**Problem 1 - Ansible 2.10.8 för gammal**
 **Felmeddelande:** `ansible 2.10.8`
-**Vad som hände:** Ubuntu 22.04 installerar Ansible
-2.10.8 via apt. Det är en version från 2021 som
-saknar stöd för moduler vi behöver.
+**Orsak:** Ubuntu 22.04 installerar Ansible 2.10.8
+via apt - för gammal version som saknar moduler vi behöver.
 **Lösning:** Uppdaterade provisioner-skriptet i
-Vagrantfilen till `pip3 install ansible`. Det
-installerar senaste versionen direkt från PyPI.
-**Resultat efter fix:** `ansible [core 2.17.14]` ✅
+Vagrantfilen till `pip3 install ansible`.
+**Resultat:** `ansible [core 2.17.14]` ✅
 
-**Problem 2 — Vagrant interna filer spårades av Git**
-**Felmeddelande:** Git staging visade `vagrant/.vagrant/`
-med SSH-nycklar på väg till GitHub.
-**Vad som hände:** Ingen `.gitignore` fanns i projektet.
-Git spårade alla filer inklusive Vagrants interna
-SSH-nycklar.
+**Problem 2 - Vagrant-filer spårades av Git**
+**Vad som hände:** Git spårade `vagrant/.vagrant/`
+med SSH-nycklar och intern Vagrant-metadata.
+**Orsak:** Ingen `.gitignore` fanns från början.
 **Lösning:** Skapade `.gitignore` och körde
-`git rm -r --cached vagrant/.vagrant/` för att
-avregistrera redan spårade filer.
-
-**Problem 3 — Felstavat kommando**
-**Felmeddelande:** `The machine with the name '..provision' was not found`
-**Vad som hände:** `..provision` skrevs istället
-för `--provision`.
-**Lösning:** `vagrant reload --provision control`
+`git rm -r --cached vagrant/.vagrant/`.
 
 ---
 
@@ -287,25 +224,18 @@ för `--provision`.
 
 **Koncept: Infrastructure-as-Code (IaC)**
 
-Traditionellt konfigureras servrar manuellt — man
-loggar in, installerar paket och justerar inställningar
-för hand. Det tar tid, det blir lätt fel och nästa
-gång man gör samma sak blir resultatet lite annorlunda.
+Traditionellt konfigureras servrar manuellt. Det tar
+tid och resultatet blir lite annorlunda varje gång.
 
-Infrastructure-as-Code löser det här. Istället för
-manuellt arbete beskrivs infrastrukturen i
-versionshanterade textfiler. Kör man filerna får man
-exakt samma resultat varje gång.
+Infrastructure-as-Code löser det. Infrastrukturen
+beskrivs i textfiler som versionshanteras i Git. Kör
+man filerna får man exakt samma resultat varje gång.
 
 I det här projektet beskriver Vagrantfilen alla sex
-servrar. `vagrant up` skapar dem automatiskt. Om vi
-förstör allt och kör `vagrant up` igen får vi
-identiska servrar på några minuter.
-
-Samma princip används i stora driftmiljöer med
-verktyg som Terraform och AWS CloudFormation —
-hundratals servrar skapas och förstörs automatiskt
-från versionshanterade konfigurationsfiler.
+servrar. Förstör man allt och kör `vagrant up` igen
+får man identiska servrar på några minuter. Samma
+princip används med Terraform och AWS CloudFormation
+i riktiga produktionsmiljöer.
 
 **Officiell dokumentation:**
 - Vagrant: https://developer.hashicorp.com/vagrant/docs
