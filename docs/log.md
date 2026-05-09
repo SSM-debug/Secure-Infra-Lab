@@ -1,8 +1,12 @@
+---
 # Projektlogg — Secure-Infra-Lab
+---
+
 
 **Projekt:** Secure-Infra-Lab  
 **Författare:** Sushanta Shekhar Modak & Farhad Norman  
 **GitHub:** https://github.com/SSM-debug/Secure-Infra-Lab  
+
 
 Den här loggen beskriver allt vi gjort i projektet,
 fas för fas. För varje fas förklarar vi vad vi gjorde,
@@ -245,22 +249,27 @@ i riktiga produktionsmiljöer.
 
 ---
 
-## Fas 2 — Ansible-konfiguration
-**Datum:** 2026-05-02
-**Git-commit:** `Add Ansible config: ansible.cfg, inventory.ini, site.yml`
+## Fas 2 - Ansible-konfiguration
+**Datum:** 2026-05-03
+**Git-commits:**
+- `Add Ansible config: ansible.cfg, inventory.ini, site.yml`
+- `Fix inventory.ini: add all:children group to resolve host/group name warnings`
+- `Fix: clean inventory groups, pipelining, SSH UFW rule, no warnings`
 
 ### Vad vi gjorde
 
-Vi skapade de tre kärnfilerna som Ansible behöver
+Vi skapade de fyra kärnfilerna som Ansible behöver
 för att fungera. `ansible.cfg` är den globala
 inställningsfilen. `inventory.ini` listar alla
-servrar. `site.yml` är huvudplanen som bestämmer
-vad som installeras var och i vilken ordning.
+servrar med IP-adresser och SSH-parametrar.
+`site.yml` definierar körordningen för alla roller.
+`vars/vars.yml` samlar delade variabler på ett ställe.
 
-Ordningen i `site.yml` är kritisk. Databasen måste
-konfigureras innan webbservrarna startar — annars
-försöker Flask ansluta till en databas som inte
-finns än och tjänsten kraschar.
+Inventory-grupperna döptes om från `control` till
+`control_g` osv för att undvika namnkrockar mellan
+grupp och host i Ansible. Pipelining aktiverades i
+`ansible.cfg` för att eliminera varningar om
+world-readable tmp-filer.
 
 ---
 
@@ -279,79 +288,67 @@ med alla servrar:
 
 ```
 ansible/
-├── ansible.cfg                 ✅
-├── inventory.ini               ✅
-├── site.yml                    ✅
+├── ansible.cfg             ✅
+├── inventory.ini           ✅
+├── site.yml                ✅
 └── vars/
-    └── vars.yml                ✅
+    └── vars.yml            ✅
 ```
-
 
 ### Varför detta steg är viktigt
 
-Utan dessa tre filer kan Ansible inte fungera alls.
-`ansible.cfg` talar om för Ansible var den ska leta
-efter servrar och hur den ska bete sig. `inventory.ini`
-är Ansibles adressbok — utan den vet Ansible inte
-att våra servrar existerar. `site.yml` är receptet
-som bestämmer vad som lagas och i vilken ordning.
+Utan dessa filer kan Ansible inte fungera. `ansible.cfg`
+talar om för Ansible var den hittar servrarna och hur
+den ska bete sig. `inventory.ini` är Ansibles register
+över alla hanterade noder. `site.yml` styr körordningen
+- databasen måste konfigureras innan webbservrarna
+startar, annars kraschar Flask vid uppstart.
 
 ---
 
 ### Körda kommandon
 
-#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
+#### Windows - PowerShell
 
 ```powershell
-# Skapa ansible.cfg i VS Code
-# Varför: Utan den måste vi ange alla inställningar
-# som flaggor varje gång vi kör Ansible — opraktiskt
-# och lätt att glömma
-PS E:\Secure-Infra-Lab> code ansible\ansible.cfg
+# Skapa och konfigurera alla fyra kärnfiler i VS Code
+E:\Secure-Infra-Lab> code ansible\ansible.cfg
+E:\Secure-Infra-Lab> code ansible\inventory.ini
+E:\Secure-Infra-Lab> code ansible\site.yml
+E:\Secure-Infra-Lab> code ansible\vars\vars.yml
 ```
-Förväntat output: VS Code öppnar en tom fil.
-Vad vi fick: Filen öppnades korrekt ✅
+Alla fyra filer skapades och konfigurerades i VS Code ✅
 
 ```powershell
-# Skapa inventory.ini i VS Code
-# Varför: Ansible måste veta vilka servrar som finns,
-# hur man når dem och vilket operativsystem de kör
-PS E:\Secure-Infra-Lab> code ansible\inventory.ini
+# Ladda upp filerna till control-servern
+# Ansible körs från /home/vagrant/ansible/ på control
+cd E:\Secure-Infra-Lab\vagrant
+E:\Secure-Infra-Lab\vagrant> vagrant upload ../ansible /home/vagrant/ansible control
 ```
-Förväntat output: VS Code öppnar en tom fil.
-Vad vi fick: Filen öppnades korrekt ✅
+Filerna laddades upp till control ✅
 
 ```powershell
-# Skapa site.yml i VS Code
-# Varför: Huvudplanen som bestämmer vilken roll som
-# körs på vilken server och i vilken ordning
-PS E:\Secure-Infra-Lab> code ansible\site.yml
+# Testa att Ansible når alla servrar
+E:\Secure-Infra-Lab\vagrant> vagrant ssh control
 ```
-Förväntat output: VS Code öppnar en tom fil.
-Vad vi fick: Filen öppnades korrekt ✅
+
+#### Bash - control (192.168.56.10)
+
+```bash
+# Verifiera att Ansible kan pinga alla servrar
+vagrant@control:~$ cd ansible
+vagrant@control:~/ansible$ ansible all -m ping
+```
+Förväntat output: `pong` från alla sex servrar ✅
 
 ```powershell
-# Skapa vars/vars.yml i VS Code
-# Varför: Centraliserade variabler — IP-adresser
-# och portnummer definieras på ett ställe och
-# används av alla roller
-PS E:\Secure-Infra-Lab> code ansible\vars\vars.yml
+# Committa till GitHub
+cd E:\Secure-Infra-Lab
+E:\Secure-Infra-Lab> git add ansible/ansible.cfg ansible/inventory.ini ansible/site.yml ansible/vars/vars.yml
+E:\Secure-Infra-Lab> git commit -m "Add Ansible config: ansible.cfg, inventory.ini, site.yml"
+E:\Secure-Infra-Lab> git push
 ```
-Förväntat output: VS Code öppnar en tom fil.
-Vad vi fick: Filen öppnades korrekt ✅
-
-```powershell
-# Publicera alla filer till GitHub
-PS E:\Secure-Infra-Lab> git add ansible/ansible.cfg ansible/inventory.ini ansible/site.yml ansible/vars/vars.yml
-PS E:\Secure-Infra-Lab> git commit -m "Add Ansible config: ansible.cfg, inventory.ini, site.yml"
-PS E:\Secure-Infra-Lab> git push
-```
-Förväntat output:
-```
-[main xxxxxxx] Add Ansible config: ansible.cfg, inventory.ini, site.yml
- 4 files changed, X insertions(+)
-```
-Vad vi fick: Exakt det förväntade ✅
+Projektet publicerades på GitHub ✅
 
 ---
 
@@ -360,54 +357,36 @@ Vad vi fick: Exakt det förväntade ✅
 📄 `ansible/ansible.cfg`
 **Vad den gör:** Global konfigurationsfil för Ansible.
 Anger sökväg till inventory-filen, inaktiverar SSH
-host key-verifiering och tillåter temporära filer
-som Ansible behöver vid privilegieeskalering.
+host key-verifiering och aktiverar pipelining.
 **Varför den finns:** Utan den måste alla inställningar
-anges som flaggor vid varje kommandokörning —
-`ansible-playbook -i inventory.ini --ssh-extra-args=...`
-**Hur vi skrev den:** Vi identifierade de tre
-inställningar som alltid behövs i vår miljö och
-konsulterade officiell dokumentation för syntax.
+anges som flaggor vid varje kommandokörning.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/ansible.cfg
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/reference_appendices/config.html
 
 📄 `ansible/inventory.ini`
 **Vad den gör:** Listar alla sex servrar med
-IP-adresser, SSH-användare, nyckelfilssökvägar
-och explicit Python-interpreter. Gruppnamnen
-har `_g`-suffix för att undvika namnkrockar
-mellan grupp och host.
+IP-adresser, SSH-parametrar och Python-interpreter.
+Gruppnamnen har `_g`-suffix för att undvika
+namnkrockar mellan grupp och host.
 **Varför den finns:** Ansible kan inte kommunicera
-med servrarna utan denna fil — den är Ansibles
-register över hanterade noder.
-**Hur vi skrev den:** Vi listade varje server med
-dess IP-adress från Vagrantfilen och lade till
-de SSH-parametrar som Ansible behöver.
+med servrarna utan denna fil.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/inventory.ini
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html
 
 📄 `ansible/site.yml`
-**Vad den gör:** Huvudplanen — definierar vilken roll
+**Vad den gör:** Huvudplanen - definierar vilken roll
 som körs på vilken server och i vilken ordning.
-Laddar variabler från `vars/vars.yml` och `secrets.yml`
-vid varje körning.
-**Varför den finns:** Utan en definierad körordning
-kan Flask försöka ansluta till en databas som ännu
-inte konfigurerats — vilket orsakar fel.
-**Hur vi skrev den:** Vi identifierade rätt körordning
-(database → web → nginx → monitor) och skapade
-ett play per servergrupp med rätt roll tilldelad.
+Laddar variabler från `vars/vars.yml` och `secrets.yml`.
+**Varför den finns:** Körordningen är kritisk -
+databasen måste vara klar innan webbservrarna startar.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/site.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_intro.html
 
 📄 `ansible/vars/vars.yml`
 **Vad den gör:** Centraliserad variabelfil med
 IP-adresser och portnummer som delas av alla roller.
-**Varför den finns:** Om vi byter IP-adress på en
-server behöver vi bara ändra på ett ställe —
-inte i varje enskild roll.
-**Hur vi skrev den:** Vi samlade alla värden som
-används av flera roller på ett ställe.
+**Varför den finns:** Om en IP-adress ändras behöver
+vi bara uppdatera på ett ställe.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/vars/vars.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html
 
@@ -415,7 +394,23 @@ används av flera roller på ett ställe.
 
 ### Problem och lösningar
 
-Inga problem uppstod under den här fasen.
+**Problem 1 - Namnkrockar i inventory**
+**Vad som hände:** Ansible varnade för namnkrockar
+mellan grupp och host - båda hette t.ex. `nginx`.
+**Orsak:** Ansible tillåter inte samma namn på
+grupp och host i samma inventory.
+**Lösning:** Döpte om alla grupper till `control_g`,
+`nginx_g`, `webserver_g` osv.
+
+**Problem 2 - World-readable tmp files-varning**
+**Vad som hände:** Ansible visade varning om
+world-readable temporära filer vid varje körning.
+**Orsak:** `allow_world_readable_tmpfiles = True`
+räcker inte - pipelining krävs.
+**Lösning:** Aktiverade `pipelining = True` under
+`[ssh_connection]` i `ansible.cfg`. Kräver också
+`Defaults !requiretty` i sudoers - konfigurerat
+av security_hardening-rollen i Fas 3.
 
 ---
 
@@ -423,22 +418,19 @@ Inga problem uppstod under den här fasen.
 
 **Koncept: Inventory och körordning i Ansible**
 
-Inventory-filen är som en adressbok för Ansible.
-Utan den vet Ansible inte att våra servrar existerar.
-Varje post i inventory-filen innehåller servernamn,
-IP-adress och hur Ansible ska ansluta.
+Inventory-filen är Ansibles adressbok. Utan den vet
+Ansible inte att servrarna existerar. Varje post
+innehåller servernamn, IP-adress och hur Ansible
+ska ansluta.
 
 Körordningen i `site.yml` är lika viktig som att
 utföra arbetsmoment i rätt följd. Databasen måste
-vara konfigurerad och igång innan webbservrarna
-startar — annars försöker Flask ansluta till något
-som inte finns än och tjänsten misslyckas med start.
+vara igång innan webbservrarna startar - annars
+försöker Flask ansluta till något som inte finns.
 
 I stora produktionsmiljöer används dynamiska
 inventories som uppdateras automatiskt när nya
-servrar startas i molnet. Nya servrar registreras
-direkt utan att någon behöver uppdatera en fil
-manuellt.
+servrar startas i molnet.
 
 **Officiell dokumentation:**
 - Ansible inventory: https://docs.ansible.com/ansible/latest/inventory_guide/
