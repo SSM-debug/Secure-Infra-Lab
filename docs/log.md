@@ -1,19 +1,15 @@
 ---
-# Teknisk dokumentation - Secure-Infra-Lab
+
+## Teknisk dokumentation - Secure-Infra-Lab
+
+Projekt: Secure-Infra-Lab 
+Författare: Sushanta Shekhar Modak & Farhad Norman  
+GitHub: https://github.com/SSM-debug/Secure-Infra-Lab  
 
 
-**Projekt:** Secure-Infra-Lab  
-**Författare:** Sushanta Shekhar Modak & Farhad Norman  
-**GitHub:** https://github.com/SSM-debug/Secure-Infra-Lab  
+Den här loggen beskriver allt vi gjort i projektet,fas för fas. För varje fas förklarar vi vad vi gjorde, vilka kommandon vi körde, vad vi såg på skärmen och hur vi löste problem som dök upp.
 
-
-Den här loggen beskriver allt vi gjort i projektet,
-fas för fas. För varje fas förklarar vi vad vi gjorde,
-vilka kommandon vi körde, vad vi såg på skärmen och
-hur vi löste problem som dök upp.
-
-Loggen är skriven så att vem som helst ska kunna följa
-med — även den som inte jobbat med projektet tidigare.
+Loggen är skriven så att vem som helst ska kunna följamed — även den som inte jobbat med projektet tidigare.
 
 ---
 
@@ -879,47 +875,41 @@ man behöver flera lager som kompletterar varandra.
 ---
 ---
 
-## Fas 4 — database-rollen
+## Fas 4 - database-rollen
 **Datum:** 2026-05-06
 **Git-commits:**
 - `Add database role: PostgreSQL, UFW, schema`
 - `Fix: clean inventory groups, pipelining, SSH UFW rule, no warnings`
+- `Fix flask role: server_name via host_vars, DB permissions, no warnings`
+- `Add role structure: cockpit role, vars and handlers for all roles`
 
 ### Vad vi gjorde
 
-Vi byggde database-rollen som installerar och konfigurerar
-PostgreSQL på database-servern. Rollen skapar databas och
-användare med minsta privilegium, skapar visits-tabellen
-via en SQL-mall och konfigurerar brandväggsregler så att
-bara web1 och web2 får ansluta till databasen.
+Vi designade och körde `database`-rollen mot
+database-servern. Rollen installerar PostgreSQL,
+skapar databas och användare, distribuerar schema
+och konfigurerar brandväggsregler så att bara web1
+och web2 får ansluta på port 5432.
 
-Vi stötte på flera problem under fasen. Det viktigaste
-var att UFW blockerade SSH-porten när brandväggen
-aktiverades — vilket låste oss ute från database-servern
-helt. Vi löste det genom att alltid tillåta SSH-porten
-innan UFW aktiveras.
-
-Vi fixade också tre varningar som uppstod under körningen:
-namnkrockar i inventory.ini, world-readable temporära filer
-och Python interpreter-varningar. Alla tre åtgärdades
-permanent för en ren produktionsmiljö.
-
-Slutresultat: `ansible-playbook site.yml` kördes mot alla
-sex servrar med `failed=0` och inga varningar.
-Idempotens bekräftad — `changed=0` på alla servrar
-utom database som har `changed=1` för PostgreSQL restart.
+Vi stötte på tre problem. Ansible-modulen för att
+köra SQL-skript var fel. PostgreSQL-behörigheterna
+för Flask-användaren saknades. `listen_addresses`
+ändrades till `'*'` som en tillfällig lösning - det
+är en känd säkerhetsavvägning som dokumenteras i
+rapporten.
 
 ---
 
 ### Rollöversikt
 
 ```
-database-rollen gör fem saker:
+database-rollen gör sex saker:
 1. Installerar PostgreSQL och python3-psycopg2
-2. Skapar databasanvändare och databas med minsta privilegium
-3. Kör schema.sql.j2 som skapar visits-tabellen
-4. Konfigurerar listen_addresses och pg_hba.conf
-5. Konfigurerar UFW — bara web1 och web2 når port 5432
+2. Skapar databasanvändaren flaskuser
+3. Skapar databasen flaskdb
+4. Distribuerar och kör schema.sql.j2
+5. Konfigurerar pg_hba.conf för web1 och web2
+6. Sätter upp UFW-brandväggsregler
 ```
 
 ### Filöversikt
@@ -929,392 +919,252 @@ ansible/
 └── roles/
     └── database/
         ├── tasks/
-        │   └── main.yml                        ✅
+        │   └── main.yml        ✅
         ├── handlers/
-        │   └── main.yml                        ✅
-        └── templates/
-            └── schema.sql.j2                   ✅
+        │   └── main.yml        ✅
+        ├── templates/
+        │   └── schema.sql.j2   ✅
+        └── vars/
+            └── main.yml        ✅
 ```
-
 
 ### Varför detta steg är viktigt
 
 Databasen är hjärtat i systemet. Utan en korrekt
-konfigurerad databas kan Flask-applikationen inte spara
-eller hämta besöksdata. UFW-reglerna säkerställer att
-bara web1 och web2 får prata med databasen — det är
-ett kritiskt säkerhetslager i vår Defense-in-Depth-strategi.
+konfigurerad databas kan Flask inte spara eller
+hämta besöksdata.
+
+UFW-reglerna säkerställer att bara web1 och web2
+får prata med databasen på port 5432. Alla andra
+anslutningar blockeras direkt. Det är ett kritiskt
+säkerhetslager i vår Defense-in-Depth-strategi.
 
 ---
 
 ### Körda kommandon
 
-#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
+#### Windows - PowerShell
 
 ```powershell
 # Skapa mappstruktur för database-rollen
-# Varför: Ansible kräver handlers/ och templates/ mappar
-# Obs: tasks/ fanns redan som platshållare sedan Fas 3
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\database\handlers
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\database\templates
+E:\Secure-Infra-Lab> mkdir ansible\roles\database\tasks
+E:\Secure-Infra-Lab> mkdir ansible\roles\database\handlers
+E:\Secure-Infra-Lab> mkdir ansible\roles\database\templates
+E:\Secure-Infra-Lab> mkdir ansible\roles\database\vars
 ```
-Förväntat output: Mapparna skapas utan felmeddelanden.
-Vad vi fick: Mapparna skapades korrekt ✅
+Alla mappar skapades utan felmeddelanden ✅
 
 ```powershell
-# Öppna rollfilerna i VS Code för redigering
-PS E:\Secure-Infra-Lab> code ansible\roles\database\tasks\main.yml
-PS E:\Secure-Infra-Lab> code ansible\roles\database\handlers\main.yml
-PS E:\Secure-Infra-Lab> code ansible\roles\database\templates\schema.sql.j2
+# Skapa och konfigurera rollfilerna i VS Code
+E:\Secure-Infra-Lab> code ansible\roles\database\tasks\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\database\handlers\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\database\templates\schema.sql.j2
+E:\Secure-Infra-Lab> code ansible\roles\database\vars\main.yml
 ```
-Förväntat output: VS Code öppnar varje fil.
-Vad vi fick: Filerna öppnades korrekt ✅
+Alla filer skapades och konfigurerades i VS Code ✅
 
 ```powershell
-# Ladda upp tasks/main.yml till control-VM
-# Varför: Ansible på control-VM kör rollerna —
-# den behöver filerna lokalt
-PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control -c "truncate -s 0 /home/vagrant/ansible/roles/database/tasks/main.yml"
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\database\tasks\main.yml /home/vagrant/ansible/roles/database/tasks/main.yml control
+# Ladda upp filerna till control-servern
+cd E:\Secure-Infra-Lab\vagrant
+E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible /home/vagrant/ansible control
 ```
-Förväntat output: `Upload has completed successfully!`
-Vad vi fick: Exakt det förväntade ✅
+Filerna laddades upp till control ✅
 
 ```powershell
-# Fixa inventory.ini — byt ut gruppnamn för att
-# undvika namnkrockar mellan grupp och host
-# Varför: [database] som gruppnamn krockar med
-# hosten som också heter database — Ansible varnar
-PS E:\Secure-Infra-Lab> code ansible\inventory.ini
+# Committa till GitHub
+cd E:\Secure-Infra-Lab
+E:\Secure-Infra-Lab> git add ansible/roles/database/
+E:\Secure-Infra-Lab> git commit -m "Add database role: PostgreSQL, UFW, schema"
+E:\Secure-Infra-Lab> git push
 ```
-Gamla gruppnamn → nya gruppnamn:
-```
-[control]    → [control_g]
-[nginx]      → [nginx_g]
-[webserver]  → [webserver_g]
-[webserver2] → [webserver2_g]
-[database]   → [database_g]
-[monitor]    → [monitor_g]
-```
-Förväntat output: Inga namnkrocks-varningar vid nästa körning.
-Vad vi fick: Alla varningar om namnkrockar försvann ✅
+Commit bekräftades utan felmeddelanden ✅
 
-```powershell
-# Uppdatera ansible.cfg med pipelining
-# Varför: Pipelining eliminerar world-readable
-# tmp files-varningen och är säkrare i produktion
-PS E:\Secure-Infra-Lab> code ansible\ansible.cfg
-```
-Vad vi lade till i [ssh_connection]:
-```ini
-pipelining = True
-```
-Förväntat output: World-readable tmp files-varningen försvinner.
-Vad vi fick: Varningen försvann efter att requiretty
-fixades i security_hardening-rollen ✅
-
-```powershell
-# Ladda upp uppdaterade filer till control-VM
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\inventory.ini /home/vagrant/ansible/inventory.ini control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\site.yml /home/vagrant/ansible/site.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\ansible.cfg /home/vagrant/ansible/ansible.cfg control
-```
-Förväntat output: `Upload has completed successfully!` för varje fil.
-Vad vi fick: Alla tre filer laddades upp korrekt ✅
-
-```powershell
-# Kopiera SSH-nyckel till nyskapad database-VM
-# Varför: Vi förstörde och återskapade database-VM —
-# den nya VM:en saknade controls publika nyckel
-PS E:\Secure-Infra-Lab\vagrant> $pubkey = vagrant ssh control -c "cat /home/vagrant/.ssh/id_rsa.pub"
-PS E:\Secure-Infra-Lab\vagrant> $port = (vagrant ssh-config database | Select-String "Port").ToString().Trim().Split(" ")[1]
-PS E:\Secure-Infra-Lab\vagrant> $keyfile = (vagrant ssh-config database | Select-String "IdentityFile").ToString().Trim().Split(" ")[1]
-PS E:\Secure-Infra-Lab\vagrant> echo $pubkey | ssh -i $keyfile -p $port -o StrictHostKeyChecking=no vagrant@127.0.0.1 "cat >> /home/vagrant/.ssh/authorized_keys"
-```
-Förväntat output: `Warning: Permanently added '[127.0.0.1]:2203'`
-Vad vi fick: Exakt det förväntade ✅
-
-```powershell
-# Rensa gamla SSH-fingeravtryck efter vagrant destroy
-# Varför: När vi förstörde och återskapade database-VM
-# fick den ett nytt fingeravtryck. Det gamla sparade
-# fingeravtrycket i known_hosts orsakar varningar
-PS E:\Secure-Infra-Lab\vagrant> ssh-keygen -f "C:\Users\modak\.ssh\known_hosts" -R "[127.0.0.1]:2203"
-PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control -c "ssh-keygen -f '/home/vagrant/.ssh/known_hosts' -R '192.168.56.14'"
-```
-Förväntat output: `known_hosts updated` på båda ställena.
-Vad vi fick: Exakt det förväntade ✅
-
-```powershell
-# Committa och pusha alla ändringar till GitHub
-PS E:\Secure-Infra-Lab> git add ansible/roles/database ansible/inventory.ini ansible/ansible.cfg ansible/site.yml ansible/roles/security_hardening
-PS E:\Secure-Infra-Lab> git commit -m "Fix: clean inventory groups, pipelining, SSH UFW rule, no warnings"
-PS E:\Secure-Infra-Lab> git push
-```
-Förväntat output: `feature/database-role -> feature/database-role`
-Vad vi fick: Exakt det förväntade ✅
-
----
-
-#### Bash — inuti control-servern
+#### Bash - control (192.168.56.10)
 
 ```bash
-# Gå till ansible-mappen och kör playbooken mot database
-vagrant@control:~$ cd /home/vagrant/ansible
-vagrant@control:~/ansible$ ansible-playbook site.yml --limit database
-```
-Förväntat output:
-```
-PLAY RECAP
-database : ok=19+  changed=X  unreachable=0  failed=0
-```
-Vad vi fick första körningen: `failed=1` — UFW blockerade SSH ❌
-Orsak: Vi aktiverade UFW med `policy: deny` utan att
-tillåta SSH-porten först. Det låste oss ute från servern.
-Lösning: Lade till `Allow SSH`-task före `Enable UFW` i
-database-rollens tasks/main.yml.
-
-```bash
-# Kör playbooken mot alla servrar
+# Logga in på control och kör playbooken
+vagrant@control:~$ cd ansible
 vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
-Förväntat output: `failed=0` för alla sex servrar, inga varningar.
-Vad vi fick slutligen:
+Förväntat output: `failed=0` på alla servrar ✅
+
+```bash
+# Verifiera idempotens
+vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
-control   ok=7   changed=0  failed=0  ✅
-database  ok=21  changed=1  failed=0  ✅
-monitor   ok=8   changed=0  failed=0  ✅
-nginx     ok=8   changed=0  failed=0  ✅
-web1      ok=8   changed=0  failed=0  ✅
-web2      ok=8   changed=0  failed=0  ✅
-```
-Inga varningar ✅
+Förväntat output: `changed=0` på alla servrar ✅
 
 ---
 
 ### Konfigurationsfiler
 
 📄 `ansible/roles/database/tasks/main.yml`
-**Vad den gör:** Installerar PostgreSQL, skapar databas
-och användare, kör SQL-schemat, konfigurerar
-listen_addresses, pg_hba.conf och UFW-brandväggsregler.
-**Varför den finns:** Det är ingångspunkten för
-database-rollen. Ansible kör tasks/main.yml automatiskt
-när rollen aktiveras i site.yml.
-**Hur vi skrev den:** Vi identifierade varje steg som
-behövdes och sökte rätt Ansible-modul för varje steg
-i officiell dokumentation.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/roles/database/tasks/main.yml
-**Officiella källor:**
-- apt-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_module.html
-- postgresql_user: https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_user_module.html
-- postgresql_db: https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_db_module.html
-- postgresql_pg_hba: https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_pg_hba_module.html
-- lineinfile: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/lineinfile_module.html
-- ufw: https://docs.ansible.com/ansible/latest/collections/community/general/ufw_module.html
-- template: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html
+**Vad den gör:** Installerar PostgreSQL, skapar
+databasanvändare och databas, kör schema,
+konfigurerar `listen_addresses` och `pg_hba.conf`
+och sätter upp UFW-regler.
+**Varför den finns:** Tasks-filen är rollens kärna -
+utan den gör rollen ingenting.
+**Hur vi skapade den:** Vi utgick från PostgreSQL-
+dokumentationen och Ansibles `community.postgresql`-
+kollektion. Varje steg i databasens livscykel fick
+en egen task - installera, starta, skapa användare,
+skapa databas, köra schema och konfigurera åtkomst.
+`become_user: postgres` används för tasks som kräver
+PostgreSQL-superuser-rättigheter. UFW-reglerna lades
+till sist för att säkerställa att brandväggen
+aktiveras efter att all konfiguration är klar.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/database/tasks/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/collections/community/postgresql/
 
 📄 `ansible/roles/database/handlers/main.yml`
-**Vad den gör:** Definierar `Restart postgresql` —
-körs bara om PostgreSQL-konfigurationen faktiskt ändrades.
-**Varför den finns:** Onödiga omstarter av PostgreSQL
-i produktion kan orsaka kortvariga driftstopp för
-alla anslutna applikationer.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/roles/database/handlers/main.yml
+**Vad den gör:** Definierar `Restart postgresql` -
+körs bara när PostgreSQL-konfigurationen har ändrats.
+**Varför den finns:** Handlers förhindrar onödiga
+omstarter - PostgreSQL startas bara om när
+konfigurationen faktiskt förändrats.
+**Hur vi skapade den:** Vi följde samma mönster som
+i security_hardening-rollen. En handler per tjänst
+som behöver startas om. `notify: Restart postgresql`
+i tasks triggar handleren bara när `lineinfile` eller
+`postgresql_pg_hba` gör en faktisk ändring.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/database/handlers/main.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
 
 📄 `ansible/roles/database/templates/schema.sql.j2`
-**Vad den gör:** SQL-mall som skapar visits-tabellen
-om den inte redan finns. Tabellen sparar server_name
-och tidsstämpel för varje besök.
-**Varför den finns:** Flask-applikationen behöver
-visits-tabellen för att fungera. `CREATE TABLE IF NOT EXISTS`
-gör att tasken är idempotent — den kan köras flera
-gånger utan att skapa dubbletter.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/roles/database/templates/schema.sql.j2
-**Officiell dokumentation:** https://www.postgresql.org/docs/14/sql-createtable.html
+**Vad den gör:** Skapar `visits`-tabellen med tre
+kolumner - `id`, `server_name` och `visited_at`.
+Ger Flask-användaren rätt behörigheter att läsa
+och skriva till tabellen.
+**Varför den finns:** En Jinja2-mall säkerställer
+att exakt samma schema används varje gång miljön
+återskapas - inga manuella SQL-kommandon behövs.
+**Hur vi skapade den:** Vi identifierade de kolumner
+Flask-applikationen behöver. `id` är primärnyckel
+med `SERIAL` för automatisk numrering. `server_name`
+identifierar vilken webbserver som hanterade besöket.
+`visited_at` sätts automatiskt med
+`DEFAULT CURRENT_TIMESTAMP`. `CREATE TABLE IF NOT
+EXISTS` gör schemat idempotent - det kraschar inte
+om tabellen redan finns. `GRANT`-satserna lades till
+efter att Flask fick behörighetsfel - PostgreSQL
+kräver explicit behörighetsgivning även för
+databasägaren.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/database/templates/schema.sql.j2
+**Officiell dokumentation:** https://www.postgresql.org/docs/current/sql-createtable.html
 
-📄 `ansible/inventory.ini` (uppdaterad)
-**Vad den gör:** Listar alla sex servrar med
-IP-adresser, SSH-inställningar och explicit
-Python-interpreter. Gruppnamnen är uppdaterade
-med `_g`-suffix för att undvika namnkrockar.
-**Varför den uppdaterades:** Ansible varnade för
-namnkrockar när grupp och host hade samma namn.
-Explicit Python-interpreter eliminerar
-interpreter-varningen.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/inventory.ini
-**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html
-
-📄 `ansible/ansible.cfg` (uppdaterad)
-**Vad den gör:** Ansible-konfiguration med pipelining
-aktiverat för att eliminera world-readable
-tmp files-varningen.
-**Varför den uppdaterades:** Pipelining är säkrare
-än world-readable temporära filer. Det kräver att
-`Defaults !requiretty` är konfigurerat i sudoers
-— vilket security_hardening-rollen nu hanterar.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/database-role/ansible/ansible.cfg
-**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/reference_appendices/config.html
+📄 `ansible/roles/database/vars/main.yml`
+**Vad den gör:** Definierar PostgreSQL-port (5432),
+datakatalog och konfigurationskatalog.
+**Varför den finns:** Separerar konfigurationsvärden
+från tasks-logiken - enkelt att justera utan att
+röra tasks-koden.
+**Hur vi skapade den:** Vi identifierade alla
+hårdkodade sökvägar och portnummer i tasks-filen
+och samlade dem här. PostgreSQL 14 installeras
+automatiskt på Ubuntu 22.04 - därför pekar
+sökvägarna på version 14. Om PostgreSQL uppgraderas
+behöver vi bara ändra här.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/database/vars/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html
 
 ---
 
 ### Problem och lösningar
 
-**Problem 1 — Duplicerat innehåll i tasks/main.yml**
-**Vad som hände:** När vi försökte klistra in kod i
-terminalen via heredoc och PowerShell here-string
-kopierades texten fel — antingen visades den i
-terminalen istället för att skrivas till filen,
-eller så lades den till efter det befintliga
-innehållet. Resultatet blev att filen innehöll
-dubbla kopior av koden.
-**Orsak:** Terminalen (både Bash och PowerShell) kan
-inte hantera långa inklistringar med specialtecken
-på ett tillförlitligt sätt. Unicode-symboler i
-kommentarerna (─, █) förstörde texten ytterligare.
-**Lösning:** Öppnade filen direkt i VS Code,
-markerade allt med `Ctrl+A`, tog bort med `Delete`
-och klistrade in den rena koden. Laddade sedan upp
-med `vagrant upload`.
-**Lärdomen:** Redigera alltid YAML-filer i VS Code —
-aldrig via terminal för längre innehåll.
+**Problem 1 - Fel Ansible-modul för SQL-skript**
+**Felmeddelande:**
+```
+ERROR! couldn't resolve module/action
+'postgresql_query'
+```
+**Vad som hände:** Vi använde `postgresql_query`
+för att köra schema.sql.j2 mot databasen. Modulen
+hittades inte av Ansible.
+**Varför det hände:** `postgresql_query` är inte
+rätt modul för att köra SQL-filer. Den kräver också
+`community.postgresql`-kollektionen som inte ingår
+i standardinstallationen.
+**Lösning:** Bytte till
+`community.postgresql.postgresql_script` med
+`path: /tmp/schema.sql` - den är designad för att
+köra hela SQL-filer.
+**Resultat:** Schema kördes korrekt mot databasen ✅
 
-**Problem 2 — UFW låste ut SSH**
-**Felmeddelande:** `Connection timed out` vid SSH till database
-**Vad som hände:** Vi aktiverade UFW med `policy: deny`
-utan att först tillåta SSH-porten (22). UFW blockerade
-all trafik inklusive SSH — vi kunde inte längre
-ansluta till database-servern.
-**Lösning:** Förstörde och återskapade database-VM med
-`vagrant destroy database -f && vagrant up database`.
-Lade sedan till `Allow SSH`-tasken **före** `Enable UFW`
-i tasks/main.yml.
-**Lärdomen:** I en verklig produktionsmiljö hade detta
-inneburit ett allvarligt driftstopp. Alltid tillåt
-SSH-porten innan UFW aktiveras — annars låser man
-ut sig själv permanent.
+**Problem 2 - Flask kunde inte skriva till databasen**
+**Felmeddelande:**
+```
+psycopg2.errors.InsufficientPrivilege:
+permission denied for table visits
+```
+**Vad som hände:** Flask-användaren `flaskuser`
+saknade behörighet att läsa och skriva till
+`visits`-tabellen trots att den var databasägare.
+**Varför det hände:** I PostgreSQL ger databasägarskap
+inte automatiskt behörighet till tabeller - behörigheter
+måste ges explicit med `GRANT`.
+**Lösning:** Lade till dessa rader i schema.sql.j2:
+```sql
+GRANT SELECT, INSERT ON visits TO {{ db_user }};
+GRANT USAGE, SELECT ON SEQUENCE visits_id_seq TO {{ db_user }};
+```
+**Resultat:** Flask kunde läsa och skriva till
+databasen ✅
 
-**Problem 3 — REMOTE HOST IDENTIFICATION HAS CHANGED**
-**Felmeddelande:** `WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED`
-**Vad som hände:** När vi återskapade database-VM fick
-den ett nytt SSH-fingeravtryck. Det gamla fingeravtrycket
-fanns kvar i `known_hosts` på både Windows och control-VM.
-SSH vägrade ansluta av säkerhetsskäl.
-**Lösning:** Rensade gamla fingeravtryck med
-`ssh-keygen -R` på båda ställena.
-**Lärdomen:** Detta händer alltid när en server
-återskapas. I produktion dokumenterar man alltid
-serverändringar och uppdaterar `known_hosts` på
-alla relevanta klienter.
-
-**Problem 4 — Pipelining orsakade SSH-timeout**
-**Felmeddelande:** `Data could not be sent to remote host`
-**Vad som hände:** Vi aktiverade pipelining i ansible.cfg
-men `requiretty` var fortfarande aktiverat i sudoers
-på servrarna. Pipelining och requiretty är inkompatibla.
-**Lösning:** Lade till `Defaults !requiretty` i sudoers
-via security_hardening-rollen. Sedan fungerade
-pipelining korrekt.
-**Lärdomen:** Pipelining kräver alltid att requiretty
-är inaktiverat. Rätt ordning är: konfigurera sudoers
-först — aktivera pipelining sedan.
+**Problem 3 - listen_addresses och säkerhetsavvägning**
+**Felmeddelande:** Inte bevarat - problemet uppstod
+under tidig konfiguration och loggarna finns inte
+kvar.
+**Vad som hände:** Flask fick anslutningsfel när
+den försökte nå databasen från web1 och web2.
+PostgreSQL lyssnade bara på specifika IP-adresser
+men tog inte emot anslutningar korrekt.
+**Varför det hände:** `listen_addresses` var satt
+till specifika IP-adresser men konfigurationen
+fungerade inte som förväntat i vår miljö.
+**Lösning:** Ändrade `listen_addresses` till `'*'`
+för att lösa anslutningsproblemet omedelbart.
+**Säkerhetsnotering:** `listen_addresses = '*'`
+är inte optimalt. PostgreSQL accepterar då
+anslutningsförsök från alla IP-adresser. I en
+produktionsmiljö ska detta kombineras med strikta
+`pg_hba.conf`-regler och UFW för tre oberoende
+säkerhetslager. Detta är en känd avvägning i
+projektet och dokumenteras i rapporten.
 
 ---
 
 ### Teorikoppling
 
-**Koncept 1: Minsta privilegium (Principle of Least Privilege)**
+**Koncept: Principle of Least Privilege**
 
-Minsta privilegium betyder att varje del av systemet
-bara får de rättigheter den faktiskt behöver —
-ingenting mer.
+Principle of Least Privilege betyder att varje del
+av systemet bara får de rättigheter den faktiskt
+behöver - ingenting mer.
 
-I det här projektet skapade vi en dedikerad
-databasanvändare `flaskuser` som bara får ansluta
-till `flaskdb`-databasen. Användaren kan inte skapa
-nya databaser, radera tabeller eller komma åt andra
-databaser på servern.
+I det här projektet får `flaskuser` bara `SELECT`
+och `INSERT` på `visits`-tabellen. Den kan inte
+radera data, ändra tabellstrukturen eller komma
+åt andra databaser. Om Flask-applikationen
+komprometteras begränsas skadan till just den
+behörigheten.
 
-UFW-reglerna tillämpar samma princip på nätverksnivå —
-bara web1 och web2 får ansluta till port 5432.
-Alla andra anslutningar blockeras.
+UFW-reglerna följer samma princip - bara web1 och
+web2 får ansluta till port 5432. Alla andra
+anslutningar blockeras direkt oavsett varifrån
+de kommer.
 
-I produktion används detta mönster överallt.
-En webbapplikation får bara läsa och skriva till
-sin egen databas. En backup-tjänst får bara läsa.
-En admin-användare med fulla rättigheter existerar
-bara för underhållsarbete — aldrig för normal drift.
-
-**Officiell dokumentation:**
-- PostgreSQL roller: https://www.postgresql.org/docs/14/user-manag.html
-- UFW: https://help.ubuntu.com/community/UFW
-
-**Koncept 2: Hur man skriver en Ansible tasks/main.yml**
-
-Varje task i en Ansible-roll följer samma mönster:
-
-```yaml
-- name: Vad uppgiften gör (beskrivning på engelska)
-  modul_namn:
-    parameter1: värde1
-    parameter2: värde2
-```
-
-Så här tänker man när man skriver en tasks/main.yml
-från grunden:
-
-1. Tänk igenom steg för steg vad servern behöver
-2. För varje steg — sök rätt Ansible-modul:
-   https://docs.ansible.com/ansible/latest/collections/index_module.html
-3. Läs modulens dokumentation och kopiera exempelkoden
-4. Anpassa parametrarna till ditt projekt
-
-Moduler vi använde i database-rollen:
-
-| Modul | Vad den gör | Dokumentation |
-|-------|-------------|---------------|
-| apt | Installerar paket | https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_module.html |
-| service | Startar/stoppar tjänster | https://docs.ansible.com/ansible/latest/collections/ansible/builtin/service_module.html |
-| postgresql_user | Skapar databasanvändare | https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_user_module.html |
-| postgresql_db | Skapar databas | https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_db_module.html |
-| postgresql_script | Kör SQL-fil | https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_script_module.html |
-| postgresql_pg_hba | Konfigurerar pg_hba.conf | https://docs.ansible.com/ansible/latest/collections/community/postgresql/postgresql_pg_hba_module.html |
-| lineinfile | Ändrar en rad i en fil | https://docs.ansible.com/ansible/latest/collections/ansible/builtin/lineinfile_module.html |
-| ufw | Konfigurerar brandvägg | https://docs.ansible.com/ansible/latest/collections/community/general/ufw_module.html |
-| template | Kopierar Jinja2-mall | https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html |
-
-Det är precis så erfarna Ansible-användare jobbar —
-ingen kan alla moduler utantill. Man söker i
-dokumentationen varje gång.
-
-**Koncept 3: UFW och nätverkssegmentering**
-
-UFW (Uncomplicated Firewall) är ett enkelt sätt att
-hantera brandväggsregler i Linux. Det bygger på
-iptables men med ett mycket enklare gränssnitt.
-
-Vår UFW-konfiguration på database-servern:
-```
-Port 22   → Tillåt SSH från alla (måste alltid vara öppen)
-Port 5432 → Tillåt bara från 192.168.56.12 (web1)
-Port 5432 → Tillåt bara från 192.168.56.13 (web2)
-Allt annat → Blockera (policy: deny)
-```
-
-Lärdomen från det här projektet: Tillåt alltid
-SSH-porten INNAN du aktiverar UFW med `policy: deny`.
-Annars låser du ut dig själv från servern.
-
-I produktion lägger man också till övervakning av
-UFW-loggar i Wazuh så att man ser om någon försöker
-ansluta till blockerade portar — det kan vara ett
-tecken på en pågående attack.
+I produktionsmiljöer kombineras detta med
+nätverkssegmentering och databasrevision för att
+spåra alla databasoperationer och snabbt upptäcka
+avvikande beteende.
 
 **Officiell dokumentation:**
+- PostgreSQL: https://www.postgresql.org/docs/
 - UFW: https://help.ubuntu.com/community/UFW
-- PostgreSQL pg_hba.conf: https://www.postgresql.org/docs/14/auth-pg-hba-conf.html
+- Ansible postgresql: https://docs.ansible.com/ansible/latest/collections/community/postgresql/
 
+---
 
 ---
 
