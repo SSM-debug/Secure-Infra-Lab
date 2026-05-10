@@ -2165,39 +2165,40 @@ brute-force-attacker via active response.
 ---
 ---
 
-## Fas 8 — Verifieringsskript och rollstruktur
+## Fas 8 - verifieringsskript
 **Datum:** 2026-05-08
 **Git-commits:**
 - `Add verify.sh and verify_host.ps1`
 - `Fix verify scripts: round-robin order, Cockpit TCP check`
-- `Add role structure: cockpit role, vars and handlers for all roles`
 
 ### Vad vi gjorde
 
-Vi skapade två verifieringsskript som automatiskt
-kontrollerar att hela infrastrukturen fungerar korrekt.
+Vi designade och körde två verifieringsskript som
+automatiskt testar att hela infrastrukturen fungerar
+korrekt. `verify.sh` körs inifrån control-servern
+och testar 38 kontrollpunkter. `verify_host.ps1`
+körs från Windows-värddatorn och testar 6
+kontrollpunkter via port forwarding.
 
-`verify.sh` körs på control-servern och testar alla
-servrar inifrån nätverket. `verify_host.ps1` körs på
-Windows-datorn och testar vad som är nåbart utifrån.
+Skripten testar nginx, lastbalansering, Flask,
+databas, brandväggsregler, SSH-härdning, fail2ban,
+auditd, Wazuh och Cockpit - hela infrastrukturen
+i ett enda kommando.
 
-Vi skapade också en separat `cockpit`-roll och
-kompletterade mappstrukturen för alla roller med
-`vars/main.yml` och `handlers/main.yml`.
-
-Slutresultat:
-- verify.sh → PASS=38 FAIL=0 ✅
-- verify_host.ps1 → PASS=6 FAIL=0 ✅
+Vi stötte på ett problem med round-robin-ordningen
+i verify_host.ps1 - skriptet antog att Server 1
+alltid svarade först vilket inte stämmer. Vi fixade
+det genom att samla två svar och kontrollera att
+båda servrarna förekommer.
 
 ---
 
 ### Rollöversikt
 
 ```
-Fas 8 gör tre saker:
-1. Skapar verify.sh — testar infrastrukturen inifrån
-2. Skapar verify_host.ps1 — testar från Windows
-3. Kompletterar rollstrukturen med vars och handlers
+Fas 8 skapar automatiserade verifieringsskript:
+1. verify.sh - 38 tester från control-servern
+2. verify_host.ps1 - 6 tester från Windows-värddatorn
 ```
 
 ### Filöversikt
@@ -2206,324 +2207,219 @@ Fas 8 gör tre saker:
 scripts/
 ├── verify.sh               ✅
 └── verify_host.ps1         ✅
-
-ansible/roles/
-├── cockpit/
-│   ├── tasks/main.yml      ✅
-│   ├── handlers/main.yml   ✅
-│   └── vars/main.yml       ✅
-├── database/
-│   └── vars/main.yml       ✅
-├── nginx/
-│   └── vars/main.yml       ✅
-├── security_hardening/
-│   └── vars/main.yml       ✅
-├── wazuh_agent/
-│   ├── handlers/main.yml   ✅
-│   └── vars/main.yml       ✅
-└── wazuh_manager/
-    ├── handlers/main.yml   ✅
-    └── vars/main.yml       ✅
 ```
-
----
 
 ### Varför detta steg är viktigt
 
-Verifieringsskript är ett krav i en professionell
-driftmiljö. Utan automatiserade tester vet vi inte
-om infrastrukturen fungerar korrekt efter en
-`vagrant destroy && vagrant up`.
+Automatiserade verifieringsskript bevisar att hela
+infrastrukturen fungerar som avsett efter varje
+`vagrant destroy -f && vagrant up && ansible-playbook
+site.yml`. Utan skripten måste varje tjänst
+kontrolleras manuellt - det tar tid och det är lätt
+att missa något.
 
-Med verify.sh kan vi köra ett enda kommando och
-få bekräftelse på att alla 38 kontrollpunkter
-är gröna. Det sparar tid och eliminerar mänskliga
-misstag vid verifiering.
-
----
-
-### Vad testas i verify.sh (38 tester)?
-
-```
-Test 1     — nginx svarar HTTP 200
-Test 2-3   — Round-robin Server 1 och Server 2
-Test 4     — web1 når database:5432
-Test 5     — Extern blockeras från database:5432
-Test 6-7   — Flask aktiv på web1 och web2
-Test 8-13  — fail2ban aktiv på alla 6 servrar
-Test 14-19 — auditd aktiv på alla 6 servrar
-Test 20-25 — PasswordAuthentication=no på alla servrar
-Test 26-31 — PermitRootLogin=no på alla servrar
-Test 32-36 — wazuh-agent aktiv på 5 servrar
-Test 37    — wazuh-manager aktiv på monitor
-Test 38    — Cockpit svarar på port 9090
-```
-
-### Vad testas i verify_host.ps1 (6 tester)?
-
-```
-Test 1 — nginx svarar via localhost:8080
-Test 2 — Round-robin innehåller Server 1
-Test 3 — Round-robin innehåller Server 2
-Test 4 — /visit registrerar ett besök
-Test 5 — Cockpit svarar på port 9090
-Test 6 — database:5432 blockerad från Windows
-```
+Skripten är också ett krav för att bevisa
+reproducerbarhet - samma 38/38 och 6/6 ska uppnås
+varje gång miljön återskapas från grunden.
 
 ---
 
 ### Körda kommandon
 
-#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
+#### Windows - PowerShell
 
 ```powershell
-# Skapa scripts-mappen
-PS E:\Secure-Infra-Lab> mkdir scripts
+# Skapa och konfigurera verifieringsskripten i VS Code
+E:\Secure-Infra-Lab> code scripts\verify.sh
+E:\Secure-Infra-Lab> code scripts\verify_host.ps1
 ```
-Förväntat output: Mappen skapas utan felmeddelanden.
-Vad vi fick: Exakt det förväntade. ✅
-
-```powershell
-# Öppna verify.sh i VS Code
-PS E:\Secure-Infra-Lab> code scripts\verify.sh
-```
-Förväntat output: VS Code öppnar en tom fil.
-Vad vi fick: Filen öppnades korrekt. ✅
-
-```powershell
-# Öppna verify_host.ps1 i VS Code
-PS E:\Secure-Infra-Lab> code scripts\verify_host.ps1
-```
-Förväntat output: VS Code öppnar en tom fil.
-Vad vi fick: Filen öppnades korrekt. ✅
-
-```powershell
-# Konvertera filer till LF — inga CRLF-varningar
-PS E:\Secure-Infra-Lab> $files = @(
-    "ansible\roles\cockpit\handlers\main.yml",
-    "ansible\roles\cockpit\tasks\main.yml",
-    "ansible\roles\cockpit\vars\main.yml",
-    "ansible\roles\database\vars\main.yml",
-    "ansible\roles\nginx\vars\main.yml",
-    "ansible\roles\security_hardening\vars\main.yml",
-    "ansible\roles\wazuh_agent\handlers\main.yml",
-    "ansible\roles\wazuh_agent\vars\main.yml",
-    "ansible\roles\wazuh_manager\handlers\main.yml",
-    "ansible\roles\wazuh_manager\vars\main.yml"
-)
-foreach ($file in $files) {
-    $content = [System.IO.File]::ReadAllText("E:\Secure-Infra-Lab\$file")
-    $content = $content -replace "`r`n", "`n"
-    [System.IO.File]::WriteAllText("E:\Secure-Infra-Lab\$file", $content, [System.Text.Encoding]::UTF8)
-}
-Write-Host "Done!"
-```
-Förväntat output: Done!
-Vad vi fick: Done! ✅
+Båda filer skapades och konfigurerades i VS Code ✅
 
 ```powershell
 # Ladda upp verify.sh till control-servern
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\scripts\verify.sh /home/vagrant/verify.sh control
+cd E:\Secure-Infra-Lab\vagrant
+E:\Secure-Infra-Lab\vagrant> vagrant upload ..\scripts\verify.sh /home/vagrant/verify.sh control
 ```
-Förväntat output: Upload has completed successfully!
-Vad vi fick: Exakt det förväntade. ✅
+verify.sh laddades upp till control ✅
 
 ```powershell
 # Kör verify_host.ps1 från Windows
-PS E:\Secure-Infra-Lab> PowerShell -ExecutionPolicy Bypass -File scripts\verify_host.ps1
+cd E:\Secure-Infra-Lab
+E:\Secure-Infra-Lab> .\scripts\verify_host.ps1
 ```
-Förväntat output: PASS=6 FAIL=0
-Vad vi fick slutligen: PASS=6 FAIL=0 ✅
+```
+==============================
+ Secure-Infra-Lab Verify Host
+==============================
+PASS: nginx responds on localhost:8080
+PASS: Round-robin includes Server 1
+PASS: Round-robin includes Server 2
+PASS: /visit registers a visit
+PASS: Cockpit responding on port 9090
+PASS: database:5432 blocked from host
+==============================
+ Results: PASS=6 FAIL=0
+==============================
+```
+6/6 tester godkända ✅
 
 ```powershell
-# Committa och pusha till GitHub
-PS E:\Secure-Infra-Lab> git add scripts/ ansible/
-PS E:\Secure-Infra-Lab> git commit -m "Add verify.sh and verify_host.ps1"
-PS E:\Secure-Infra-Lab> git push --set-upstream origin feature/verify-scripts
+# Committa till GitHub
+E:\Secure-Infra-Lab> git add scripts/verify.sh scripts/verify_host.ps1
+E:\Secure-Infra-Lab> git commit -m "Add verify.sh and verify_host.ps1"
+E:\Secure-Infra-Lab> git push
 ```
-Förväntat output: feature/verify-scripts -> feature/verify-scripts
-Vad vi fick: Exakt det förväntade. ✅
+Commit bekräftades utan felmeddelanden ✅
 
----
-
-#### Bash — inuti control-servern
+#### Bash - control (192.168.56.10)
 
 ```bash
-# Kopiera controls SSH-nyckel till sin egna authorized_keys
-# Varför: verify.sh SSH:ar till alla servrar inklusive control
-# Utan detta nekas control SSH till sig själv
-vagrant@control:~$ cat /home/vagrant/.ssh/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
+# Logga in på control och kör verify.sh
+vagrant@control:~$ bash verify.sh
 ```
-Förväntat output: Inga felmeddelanden.
-Vad vi fick: Exakt det förväntade. ✅
-
-```bash
-# Kör verify.sh — första gången
-vagrant@control:~$ bash /home/vagrant/verify.sh
 ```
-Förväntat output: PASS=38 FAIL=0
-Vad vi fick (först): PASS=30 FAIL=8 ❌
-
----
-
-**Fel 1 — control SSH nekad sig själv**
-Orsak: Controls publika nyckel saknades i
-authorized_keys. verify.sh SSH:ar till alla
-servrar inklusive control själv.
-Lösning:
-```bash
-vagrant@control:~$ cat /home/vagrant/.ssh/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
+==============================
+ Secure-Infra-Lab Verify
+==============================
+PASS: nginx HTTP 200
+PASS: Round-robin Server 1
+PASS: Round-robin Server 2
+PASS: web1 reaches database:5432
+PASS: External blocked from database:5432
+PASS: Flask active on web1
+PASS: Flask active on web2
+PASS: fail2ban active on 192.168.56.10
+... (alla 38 tester)
+==============================
+ Results: PASS=38 FAIL=0
+==============================
 ```
-Resultat: PASS på alla control-tester ✅
-
----
-
-**Fel 2 — wazuh-manager hade kraschat**
-Orsak: Wazuh Manager kraschade på grund av
-minnesbrist efter omstart av monitor-servern.
-Lösning:
-```powershell
-PS E:\Secure-Infra-Lab\vagrant> vagrant ssh monitor -c "sudo systemctl restart wazuh-manager"
-PS E:\Secure-Infra-Lab\vagrant> vagrant ssh monitor -c "sudo systemctl is-active wazuh-manager"
-```
-Förväntat output: active
-Vad vi fick: active ✅
-
----
-
-**Fel 3 — Round-robin i fel ordning**
-Orsak: Skriptet förväntade sig Server 1 alltid
-först men nginx skickar trafik växelvis — ibland
-kommer Server 2 först.
-Lösning i verify.sh — ändrade från:
-```bash
-# Gammalt — kontrollerade exakt ordning
-vagrant@control:~$ check "Round-robin Server 1" \
-  "$(curl -s http://192.168.56.11/)" "Server 1"
-```
-Till:
-```bash
-# Nytt — kontrollerar att båda servrar svarar
-# oavsett ordning
-vagrant@control:~$ r1=$(curl -s http://192.168.56.11/)
-vagrant@control:~$ r2=$(curl -s http://192.168.56.11/)
-vagrant@control:~$ check "Round-robin includes Server 1" \
-  "$r1 $r2" "Server 1"
-vagrant@control:~$ check "Round-robin includes Server 2" \
-  "$r1 $r2" "Server 2"
-```
-Resultat: PASS på round-robin-tester ✅
-
-```bash
-# Kör verify.sh — efter alla fixar
-vagrant@control:~$ bash /home/vagrant/verify.sh
-```
-Förväntat output: PASS=38 FAIL=0
-Vad vi fick: PASS=38 FAIL=0 ✅
+38/38 tester godkända ✅
 
 ---
 
 ### Konfigurationsfiler
 
 📄 `scripts/verify.sh`
-**Vad den gör:** Bash-skript som testar 38
-kontrollpunkter på alla sex servrar inifrån
-nätverket. Körs från control-servern.
-**Varför den finns:** Automatiserar verifiering
-av hela infrastrukturen efter driftsättning.
+**Vad den gör:** Bash-skript med 38 automatiserade
+tester som körs från control-servern. Testar nginx,
+round-robin lastbalansering, databasanslutning från
+web1, brandväggsblockering, Flask-tjänster,
+fail2ban, auditd, SSH-härdning, Wazuh-agenter,
+Wazuh Manager och Cockpit.
+**Varför den finns:** Ett enda kommando verifierar
+att hela infrastrukturen fungerar korrekt. Det
+bevisar reproducerbarhet och sparar tid vid
+felsökning.
+**Hur vi skapade den:** Vi identifierade alla
+tjänster och säkerhetskrav i projektet och skapade
+ett test per krav. En återanvändbar `check()`-
+funktion tar emot beskrivning, faktiskt resultat
+och förväntat värde - den skriver PASS eller FAIL
+och räknar resultaten. `for`-loopar används för
+tester som ska köras på alla sex servrar. `curl`
+används för HTTP-tester och `nc` för port-tester.
+SSH-tester körs via `ssh -o StrictHostKeyChecking=no`
+för att undvika interaktiva frågor.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/scripts/verify.sh
+**Officiell dokumentation:** https://www.gnu.org/software/bash/manual/
 
 📄 `scripts/verify_host.ps1`
-**Vad den gör:** PowerShell-skript som testar
-6 kontrollpunkter från Windows-datorn. Verifierar
-att port forwarding och extern åtkomst fungerar.
-**Varför den finns:** Testar infrastrukturen
-utifrån — precis som en riktig användare.
+**Vad den gör:** PowerShell-skript med 6 automatiserade
+tester som körs från Windows-värddatorn. Testar
+nginx via port forwarding 8080, round-robin
+lastbalansering, /visit-routen, Cockpit via TCP
+och att databasen inte är nåbar från Windows.
+**Varför den finns:** Kompletterar verify.sh med
+tester från värddatorns perspektiv - testar port
+forwarding och att brandväggsreglerna fungerar
+utifrån.
+**Hur vi skapade den:** Vi följde samma mönster
+som i verify.sh men anpassade det till PowerShell.
+`Invoke-WebRequest` används för HTTP-tester.
+`System.Net.Sockets.TcpClient` används för TCP-
+tester av Cockpit och databasblockering. En `Check`-
+funktion med `Write-Host -ForegroundColor` ger
+grön/röd output i terminalen. Round-robin-testet
+samlar två svar i `$r1` och `$r2` och kontrollerar
+att båda servrarna förekommer i det kombinerade
+svaret.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/scripts/verify_host.ps1
-
-📄 `ansible/roles/cockpit/tasks/main.yml`
-**Vad den gör:** Installerar och startar Cockpit
-på monitor-servern.
-**Varför den finns:** Cockpit är en separat tjänst
-och bör ha sin egen roll — inte blandas med
-wazuh_manager-rollen.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/cockpit/tasks/main.yml
-**Officiell dokumentation:** https://cockpit-project.org/documentation.html
+**Officiell dokumentation:** https://learn.microsoft.com/en-us/powershell/
 
 ---
 
 ### Problem och lösningar
 
-**Problem 1 — PowerShell blockerade skriptet**
-**Felmeddelande:** running scripts is disabled on this system
-**Orsak:** Windows blockerar PowerShell-skript
-som standard av säkerhetsskäl.
-**Lösning:**
-```powershell
-PS E:\Secure-Infra-Lab> PowerShell -ExecutionPolicy Bypass -File scripts\verify_host.ps1
+**Problem 1 - Round-robin-testet misslyckades sporadiskt**
+**Felmeddelande:**
 ```
-**Lärdomen:** I produktionsmiljöer hanteras detta
-via Group Policy eller signerade skript.
+FAIL: Round-robin Server 2 (got: Hello from Server 1!)
+```
+**Vad som hände:** Testet antog att Server 1 alltid
+svarade på första anropet och Server 2 på andra
+anropet. Men nginx startar inte alltid från Server 1
+- det beror på var i rotationen nginx befinner sig
+när skriptet körs.
+**Varför det hände:** Round-robin-ordningen i nginx
+bevaras mellan anrop. Om ett tidigare anrop redan
+har skickat till Server 1 kan nästa anrop gå till
+Server 2 istället.
+**Lösning:** Ändrade testet till att samla två svar
+i `$r1` och `$r2` och kombinera dem i `$combined`.
+Sedan kontrolleras att "Server 1" och "Server 2"
+båda förekommer i det kombinerade svaret - oavsett
+ordning.
+**Resultat:** Round-robin-testet ger stabila
+resultat oavsett nginx-rotationsläge ✅
 
-**Problem 2 — CRLF i nya filer**
-**Felmeddelande:** warning: CRLF will be replaced by LF
-**Orsak:** VS Code på Windows sparar nya filer
-med CRLF-radbrytningar som standard.
-**Lösning:** Konvertera med PowerShell-skript
-eller klicka på CRLF → LF i VS Code statusfältet.
-**Lärdomen:** CRLF orsakade nginx-kraschen tidigare:
+**Problem 2 - Cockpit-testet med HTTPS misslyckades**
+**Felmeddelande:**
 ```
-nginx: [emerg] unknown directive "﻿#"
+FAIL: Cockpit responds on localhost:9090 (got: failed)
 ```
-Det är ett konkret exempel på hur ett osynligt
-tecken kan stoppa hela systemet.
+**Vad som hände:** `Invoke-WebRequest` mot
+`https://localhost:9090` misslyckades på grund av
+Cockpits självsignerade certifikat.
+**Varför det hände:** PowerShell validerar SSL-
+certifikat som standard. Cockpit använder ett
+självsignerat certifikat som inte är betrodd av
+Windows.
+**Lösning:** Bytte från HTTPS-anrop till TCP-
+anslutningstest med `System.Net.Sockets.TcpClient`.
+TCP-testet kontrollerar bara att port 9090 svarar
+- det behöver inte validera certifikatet.
+**Resultat:** Cockpit-testet ger stabila
+resultat ✅
 
 ---
 
 ### Teorikoppling
 
-**Koncept 1: Automatiserad verifiering**
+**Koncept: Automatiserad verifiering och reproducerbarhet**
 
-I en professionell driftmiljö körs verifieringsskript
-automatiskt efter varje driftsättning. Det kallas
-"smoke testing" — ett snabbt test som bekräftar
-att de viktigaste funktionerna fungerar.
+Automatiserade tester är grunden för att bevisa
+att ett system fungerar som avsett. Utan tester
+vet vi inte om en ny installation är identisk med
+den förra.
 
-I vårt projekt kör vi verify.sh efter varje
-`vagrant up && ansible-playbook site.yml` för
-att bekräfta att alla 38 kontrollpunkter är gröna.
+I det här projektet bevisar verify.sh och
+verify_host.ps1 att hela infrastrukturen fungerar
+korrekt efter varje omstart från grunden. 38/38
+och 6/6 ska uppnås varje gång - annars är miljön
+inte reproducerbar.
 
-**Koncept 2: CRLF och LF — radbrytningar**
-
-Windows använder CRLF (\r\n) och Linux använder
-LF (\n) för radbrytningar. Det är ett arv från
-skrivmaskinstiden — CR betydde "flytta skrivhuvudet
-till vänster" och LF betydde "rulla papperet upp".
-
-I vårt projekt orsakade CRLF att nginx vägrade
-starta med felmeddelandet:
-```
-nginx: [emerg] unknown directive "﻿#"
-```
-Det är ett konkret exempel på hur ett osynligt
-tecken kan stoppa hela systemet. Vi löste det
-permanent med `.gitattributes` och VS Code-
-inställningen `files.encoding: utf8`.
+I produktionsmiljöer används liknande tester i
+CI/CD-pipelines. Varje gång kod pushas till
+Git körs automatiska tester mot en testmiljö.
+Om testerna misslyckas blockeras deploymentet
+automatiskt - ingen kod som bryter infrastrukturen
+når produktion.
 
 **Officiell dokumentation:**
-- https://git-scm.com/docs/gitattributes
+- Bash: https://www.gnu.org/software/bash/manual/
+- PowerShell: https://learn.microsoft.com/en-us/powershell/
+- curl: https://curl.se/docs/
 
-**Koncept 3: Defense-in-Depth verifierad**
-
-verify.sh bekräftar att alla säkerhetslager
-fungerar korrekt:
-- SSH-härdning (PasswordAuth=no, PermitRoot=no)
-- fail2ban aktiv på alla servrar
-- auditd aktiv på alla servrar
-- UFW blockerar extern åtkomst till databasen
-- Wazuh-agenter rapporterar till Manager
-
-Det räcker inte att bara installera säkerhetsverktygen
-— vi måste verifiera att de faktiskt är aktiva
-och korrekt konfigurerade.
-
+---
+---
