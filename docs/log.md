@@ -1783,100 +1783,50 @@ persistens).
 ---
 ---
 
-## Fas 7 — wazuh_manager, wazuh_agent och Cockpit Dashboard
-**Datum:** 2026-05-07 / 2026-05-08
+## Fas 7 - wazuh_manager, wazuh_agent och cockpit-rollerna
+**Datum:** 2026-05-07
 **Git-commits:**
-- `Add port forwarding 443->8443 for Wazuh Dashboard on monitor`
+- `Add wazuh_manager and wazuh_agent roles`
 - `Add wazuh_manager and wazuh_agent roles, fix flask defaults`
 - `Replace Wazuh Dashboard with Cockpit, fix monitor port forwarding`
 - `Update comments: Cockpit dashboard on port 9090`
+- `Add role structure: cockpit role, vars and handlers for all roles`
 
 ### Vad vi gjorde
 
-Vi installerade Wazuh på hela infrastrukturen och lade
-till ett webbbaserat övervakningsdashboard på monitor-servern.
+Vi designade och körde tre roller mot monitor-servern
+och övriga servrar. `wazuh_manager`-rollen installerar
+Wazuh Manager på monitor och konfigurerar den som
+central säkerhetsövervakning. `wazuh_agent`-rollen
+installerar Wazuh-agenten på alla servrar utom monitor
+och kopplar dem till Wazuh Manager. `cockpit`-rollen
+installerar Cockpit - ett webbaserat dashboard för
+systemövervakning.
 
-Fas 7 består av tre delar:
-- Wazuh Manager installerades på monitor-servern.
-  Den tar emot säkerhetshändelser från alla andra servrar.
-- Wazuh Agent installerades på de fem andra servrarna.
-  Varje agent skickar händelser till Manager kontinuerligt.
-- Cockpit installerades på monitor-servern som ett
-  lättanvänt webbdashboard för systemövervakning.
-  Det nås via https://localhost:9090.
-
-Vi försökte också installera Wazuh Dashboard och
-Wazuh Indexer men stötte på problem med SSL-certifikat
-och minnesbrist. Vi valde istället Cockpit som är
-enklare, kräver mindre minne och ger bra översikt
-över systemet.
-
-Slutresultat: Wazuh Manager och Cockpit körs på
-monitor. Wazuh Agent körs på alla fem andra servrar.
-Hela playbooken ger `failed=0` på alla sex servrar
-utan varningar. Cockpit är tillgänglig via
-https://localhost:9090.
-
----
-
-### Vad är Wazuh och hur fungerar det?
-
-Wazuh är ett verktyg som övervakar säkerheten på
-dina servrar. Tänk på det som ett larmsystem:
-
-```
-Wazuh Agent   = Rörelsedetektor i varje rum
-Wazuh Manager = Larmpanelen som samlar alla signaler
-Cockpit       = Skärmen där du ser vad som händer
-```
-
-Wazuh håller koll på:
-- Vem som loggar in och ut på servrarna
-- Om viktiga filer ändras (t.ex. /etc/passwd)
-- Om någon försöker logga in med fel lösenord många gånger
-- Om det finns kända säkerhetsproblem i installerade program
-
-Wazuh arbetar på två sätt:
-- I bakgrunden — kontrollerar loggar var femte sekund
-- I realtid — skickar varning direkt om något allvarligt händer
-
----
-
-### Vad är Cockpit?
-
-Cockpit är ett enkelt webbdashboard som är inbyggt
-i Ubuntu. Det visar systeminformation i realtid
-direkt i webbläsaren utan krånglig konfiguration.
-
-Cockpit visar:
-- CPU- och minnesanvändning i realtid
-- Systemloggar
-- Nätverkstrafik
-- Tjänster som körs
-- Terminal direkt i webbläsaren
-
-Det nås via: https://localhost:9090
-Inloggning med: vagrant / vagrant
+Vi bytte ursprungligen Wazuh Dashboard mot Cockpit
+eftersom Wazuh Dashboard kräver för mycket RAM för
+vår labbmiljö med begränsat minne. Cockpit är
+lättare och ger tillräcklig systemöverblick för
+vårt syfte.
 
 ---
 
 ### Rollöversikt
 
 ```
-Fas 7 består av tre delar:
+wazuh_manager-rollen gör tre saker:
+1. Lägger till Wazuh GPG-nyckel och repository
+2. Installerar Wazuh Manager via apt
+3. Startar och aktiverar wazuh-manager-tjänsten
 
-Del 1 — wazuh_manager (körs på monitor .15):
-1. Lägger till Wazuh i systemets paketlista
-2. Installerar wazuh-manager
-3. Startar och aktiverar Wazuh Manager-tjänsten
-4. Installerar Cockpit för webbbaserad övervakning
-5. Startar och aktiverar Cockpit-tjänsten
+wazuh_agent-rollen gör tre saker:
+1. Lägger till Wazuh GPG-nyckel och repository
+2. Installerar Wazuh Agent med WAZUH_MANAGER-miljövariabel
+3. Startar och aktiverar wazuh-agent-tjänsten
 
-Del 2 — wazuh_agent (körs på control, nginx, web1, web2, database):
-1. Lägger till Wazuh i systemets paketlista
-2. Installerar wazuh-agent
-3. Talar om för agenten var Manager finns (monitor .15)
-4. Startar och aktiverar agent-tjänsten
+cockpit-rollen gör två saker:
+1. Installerar Cockpit via apt
+2. Startar och aktiverar cockpit-tjänsten
 ```
 
 ### Filöversikt
@@ -1885,348 +1835,334 @@ Del 2 — wazuh_agent (körs på control, nginx, web1, web2, database):
 ansible/
 └── roles/
     ├── wazuh_manager/
-    │   └── tasks/
+    │   ├── tasks/
+    │   │   └── main.yml        ✅
+    │   ├── handlers/
+    │   │   └── main.yml        ✅
+    │   └── vars/
     │       └── main.yml        ✅
-    │
-    └── wazuh_agent/
-        └── tasks/
+    ├── wazuh_agent/
+    │   ├── tasks/
+    │   │   └── main.yml        ✅
+    │   ├── handlers/
+    │   │   └── main.yml        ✅
+    │   └── vars/
+    │       └── main.yml        ✅
+    └── cockpit/
+        ├── tasks/
+        │   └── main.yml        ✅
+        ├── handlers/
+        │   └── main.yml        ✅
+        └── vars/
             └── main.yml        ✅
 
-ansible/
-└── site.yml                    ✅ (uppdaterad)
-
 vagrant/
-└── Vagrantfile                 ✅ (port forwarding 9090→9090)
-```
+└── Vagrantfile                 ✅ (port forwarding 9090->9090)
 
----
+ansible/
+└── site.yml                    ✅ (uppdaterad med cockpit-rollen)
+```
 
 ### Varför detta steg är viktigt
 
 Utan Wazuh är infrastrukturen blind. Vi vet inte
-vad som händer på servrarna. Med Wazuh får vi
+vad som händer på servrarna. Med Wazuh Manager på
+monitor och agenter på alla andra servrar får vi
 full översikt över alla säkerhetshändelser på
 ett ställe.
 
-Med Cockpit kan vi dessutom visa systemstatus
-live i en webbläsare — CPU, minne, loggar och
-tjänster i realtid.
+Wazuh övervakar bland annat misslyckade inloggningar,
+filförändringar, processer som startar och stoppas
+och nätverkstrafik. Om något misstänkt händer syns
+det direkt i loggarna.
 
-Det här är ett konkret svar på frågan:
-"Vad händer om web1 komprometteras?"
-
-```
-Angriparen tar sig in på web1
-    ↓
-Wazuh Agent på web1 märker:
-  - Att viktiga filer ändrats
-  - Att ovanliga program startats
-  - Att misstänkta nätverksanslutningar skapats
-    ↓
-Varning skickas till Wazuh Manager på monitor
-    ↓
-Vi ser händelsen i Wazuh Manager-loggarna
-Vi ser systemstatus i Cockpit Dashboard
-```
-
-Det är Defense-in-Depth i praktiken. fail2ban
-stoppar brute-force-attacker. SSH-härdning
-blockerar lösenordsinloggning. auditd loggar
-systemhändelser. Wazuh samlar allt centralt.
-Cockpit ger visuell översikt.
-
----
-
-### Varför vi använder shell-modulen istället för apt direkt
-
-Wazuh finns inte i Ubuntus standardpaketlista.
-Vi måste först lägga till Wazuh's egna paketlista.
-Det kräver kommandon som `curl` och `gpg` —
-därför använder vi `shell`-modulen.
-
-För att behålla idempotens använder vi
-`args: creates:` som säger till Ansible:
-"kör bara det här kommandot om den här filen
-inte redan finns":
-
-```yaml
-- name: Lägg till Wazuh GPG-nyckel
-  shell: curl ... | gpg --import
-  args:
-    creates: /usr/share/keyrings/wazuh.gpg
-```
-
-Om filen redan finns hoppar Ansible över steget.
-Det betyder att kommandot bara körs en gång.
+Cockpit ger en webbaserad vy av systemstatus - CPU,
+minne, diskutrymme och aktiva tjänster - utan att
+behöva logga in via SSH.
 
 ---
 
 ### Körda kommandon
 
-#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
+#### Windows - PowerShell
 
 ```powershell
-# Skapa mappstruktur för wazuh_manager och wazuh_agent
-PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_manager/tasks"
-PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_manager/vars"
-PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_manager/handlers"
-PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_manager/templates"
-PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_agent/vars"
-PS E:\Secure-Infra-Lab\ansible\roles> New-Item -ItemType Directory -Path "wazuh_agent/handlers"
+# Skapa mappstruktur för alla tre roller
+E:\Secure-Infra-Lab> mkdir ansible\roles\wazuh_manager\tasks
+E:\Secure-Infra-Lab> mkdir ansible\roles\wazuh_manager\handlers
+E:\Secure-Infra-Lab> mkdir ansible\roles\wazuh_manager\vars
+E:\Secure-Infra-Lab> mkdir ansible\roles\wazuh_agent\tasks
+E:\Secure-Infra-Lab> mkdir ansible\roles\wazuh_agent\handlers
+E:\Secure-Infra-Lab> mkdir ansible\roles\wazuh_agent\vars
+E:\Secure-Infra-Lab> mkdir ansible\roles\cockpit\tasks
+E:\Secure-Infra-Lab> mkdir ansible\roles\cockpit\handlers
+E:\Secure-Infra-Lab> mkdir ansible\roles\cockpit\vars
 ```
-Förväntat output: Mapparna skapas utan felmeddelanden.
-Vad vi fick: Alla mappar skapades korrekt. ✅
+Alla mappar skapades utan felmeddelanden ✅
 
 ```powershell
-# Lägg till port forwarding för Cockpit i Vagrantfilen
-# Varför: Cockpit körs på port 9090 på monitor-servern
-# Med port forwarding når vi den via https://localhost:9090
-PS E:\Secure-Infra-Lab> notepad vagrant\Vagrantfile
+# Skapa och konfigurera rollfilerna i VS Code
+E:\Secure-Infra-Lab> code ansible\roles\wazuh_manager\tasks\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\wazuh_manager\handlers\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\wazuh_manager\vars\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\wazuh_agent\tasks\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\wazuh_agent\handlers\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\wazuh_agent\vars\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\cockpit\tasks\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\cockpit\handlers\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\cockpit\vars\main.yml
 ```
-Tillägg i monitor-blocket:
-```ruby
-monitor.vm.network "forwarded_port", guest: 9090, host: 9090
-```
-Förväntat output: Ändringen sparas utan fel.
-Vad vi fick: Filen sparades korrekt. ✅
+Alla filer skapades och konfigurerades i VS Code ✅
 
 ```powershell
-# Starta om monitor med den uppdaterade Vagrantfilen
-PS E:\Secure-Infra-Lab\vagrant> vagrant reload monitor
+# Uppdatera Vagrantfilen med port forwarding för Cockpit
+E:\Secure-Infra-Lab> code vagrant\Vagrantfile
 ```
-Förväntat output: Machine booted and ready! med port 9090→9090.
-Vad vi fick: Exakt det förväntade. ✅
+Port forwarding 9090->9090 lades till för monitor ✅
 
 ```powershell
-# Ladda upp alla Wazuh-filer till control-servern
-PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control -c "mkdir -p /home/vagrant/ansible/roles/wazuh_manager/tasks /home/vagrant/ansible/roles/wazuh_agent/tasks"
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\wazuh_manager\tasks\main.yml /home/vagrant/ansible/roles/wazuh_manager/tasks/main.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\wazuh_agent\tasks\main.yml /home/vagrant/ansible/roles/wazuh_agent/tasks/main.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\site.yml /home/vagrant/ansible/site.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\flask\defaults\main.yml /home/vagrant/ansible/roles/flask/defaults/main.yml control
+# Ladda upp filerna till control-servern
+cd E:\Secure-Infra-Lab\vagrant
+E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible /home/vagrant/ansible control
 ```
-Förväntat output: Upload has completed successfully! för varje fil.
-Vad vi fick: Alla filer laddades upp korrekt. ✅
+Filerna laddades upp till control ✅
 
 ```powershell
-# Ta bort misslyckad wazuh-indexer tjänst
-PS E:\Secure-Infra-Lab\vagrant> vagrant ssh monitor -c "sudo systemctl reset-failed wazuh-indexer"
-PS E:\Secure-Infra-Lab\vagrant> vagrant ssh monitor -c "sudo apt-get remove -y wazuh-indexer wazuh-dashboard 2>/dev/null; sudo apt-get autoremove -y"
+# Committa till GitHub
+cd E:\Secure-Infra-Lab
+E:\Secure-Infra-Lab> git add ansible/roles/wazuh_manager/ ansible/roles/wazuh_agent/ ansible/roles/cockpit/ vagrant/Vagrantfile ansible/site.yml
+E:\Secure-Infra-Lab> git commit -m "Add wazuh_manager and wazuh_agent roles"
+E:\Secure-Infra-Lab> git push
 ```
-Förväntat output: Paketen avinstalleras utan fel.
-Vad vi fick: Varningen försvann från Cockpit. ✅
+Commit bekräftades utan felmeddelanden ✅
 
-```powershell
-# Committa och pusha till GitHub
-PS E:\Secure-Infra-Lab> git add ansible/roles/wazuh_manager ansible/roles/wazuh_agent ansible/roles/flask/defaults ansible/site.yml vagrant/Vagrantfile
-PS E:\Secure-Infra-Lab> git commit -m "Add wazuh_manager and wazuh_agent roles, fix flask defaults"
-PS E:\Secure-Infra-Lab> git push
-```
-Förväntat output: feature/cockpit-dashboard -> feature/cockpit-dashboard
-Vad vi fick: Exakt det förväntade. ✅
-
----
-
-#### Bash — inuti control-servern
+#### Bash - control (192.168.56.10)
 
 ```bash
-# Kontrollera att SSH-nyckeln finns på monitor
-vagrant@control:~$ ssh-copy-id -o StrictHostKeyChecking=no vagrant@192.168.56.15
-```
-Förväntat output: 1 key(s) installed.
-Vad vi fick: All keys were skipped — nyckeln fanns redan. ✅
-
-```bash
-# Kör Wazuh Manager och Cockpit på monitor
-vagrant@control:~/ansible$ ansible-playbook site.yml --limit monitor_g
-```
-Förväntat output: monitor : ok=14  changed=2  failed=0
-Vad vi fick: ok=14  changed=2  failed=0 ✅
-
-```bash
-# Kör Wazuh Agent på alla andra servrar
-vagrant@control:~/ansible$ ansible-playbook site.yml --limit control_g:nginx_g:webserver_g:webserver2_g:database_g
-```
-Förväntat output: failed=0 för alla fem servrar.
-Vad vi fick: failed=0 på alla fem. ✅
-
-```bash
-# Kör hela playbooken — kontrollera att allt fungerar
+# Logga in på control och kör playbooken
+# OBS: Wazuh Manager-installationen tar lång tid
+vagrant@control:~$ cd ansible
 vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
-Förväntat output: failed=0 på alla sex servrar.
-Vad vi fick:
+Förväntat output: `failed=0` på alla servrar ✅
+
+```bash
+# Verifiera att Wazuh Manager körs på monitor
+vagrant@control:~/ansible$ ansible monitor_g -m shell -a "systemctl is-active wazuh-manager"
 ```
-control   ok=12  changed=1  failed=0  ✅
-database  ok=26  changed=2  failed=0  ✅
-monitor   ok=14  changed=1  failed=0  ✅
-nginx     ok=18  changed=1  failed=0  ✅
-web1      ok=20  changed=1  failed=0  ✅
-web2      ok=20  changed=1  failed=0  ✅
 ```
-Inga varningar. Idempotens bekräftad. ✅
+monitor | CHANGED | rc=0 >>
+active
+```
+Wazuh Manager körs korrekt ✅
+
+```bash
+# Verifiera att Wazuh-agenter är anslutna
+vagrant@control:~/ansible$ ansible monitor_g -m shell -a "sudo /var/ossec/bin/agent_control -l"
+```
+Förväntat output: Alla fem agenter visas som aktiva ✅
+
+```bash
+# Verifiera att Cockpit är nåbar
+# Öppna i webbläsaren på Windows-värddatorn
+# https://localhost:9090
+# Logga in med vagrant/vagrant
+```
+Cockpit dashboard tillgänglig ✅
+
+```bash
+# Verifiera idempotens
+vagrant@control:~/ansible$ ansible-playbook site.yml
+```
+Förväntat output: `changed=0` på alla servrar ✅
 
 ---
 
 ### Konfigurationsfiler
 
 📄 `ansible/roles/wazuh_manager/tasks/main.yml`
-**Vad den gör:** Lägger till Wazuh i systemets
-paketlista, installerar wazuh-manager, startar
-tjänsten och installerar Cockpit för webbbaserad
-systemövervakning.
-**Varför den finns:** Wazuh Manager är den centrala
-servern som tar emot data från alla agenter.
-Cockpit ger ett enkelt webbgränssnitt för att
-se systemstatus i realtid.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/cockpit-dashboard/ansible/roles/wazuh_manager/tasks/main.yml
-**Officiell dokumentation:**
-- Wazuh: https://documentation.wazuh.com/current/installation-guide/wazuh-manager/step-by-step.html
-- Cockpit: https://cockpit-project.org/documentation.html
+**Vad den gör:** Lägger till Wazuh GPG-nyckel och
+apt-repository, installerar Wazuh Manager och
+startar tjänsten.
+**Varför den finns:** Tasks-filen är rollens kärna -
+utan den gör rollen ingenting.
+**Hur vi skapade den:** Vi utgick från Wazuhs
+officiella installationsdokumentation. GPG-nyckeln
+läggs till med `shell`-modulen och `creates`-argumentet
+gör steget idempotent - det körs bara om nyckelfilen
+inte redan finns. Samma mönster används för
+repository-filen. Wazuh Manager installeras sedan
+via `apt`-modulen med ett specifikt versionslås
+för att garantera reproducerbarhet.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/wazuh_manager/tasks/main.yml
+**Officiell dokumentation:** https://documentation.wazuh.com/current/installation-guide/
+
+📄 `ansible/roles/wazuh_manager/handlers/main.yml`
+**Vad den gör:** Definierar `Restart wazuh-manager` -
+körs bara när konfigurationen har ändrats.
+**Varför den finns:** Handlers förhindrar onödiga
+omstarter - Wazuh Manager startas bara om när
+konfigurationen faktiskt förändrats.
+**Hur vi skapade den:** Vi följde samma mönster som
+i tidigare roller. En handler per tjänst som behöver
+startas om vid konfigurationsändringar.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/wazuh_manager/handlers/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
+
+📄 `ansible/roles/wazuh_manager/vars/main.yml`
+**Vad den gör:** Definierar Wazuh Manager-port (1514),
+registreringsport (1515), API-port (55000),
+regelkatalog och alert-loggfil.
+**Varför den finns:** Samlar alla rollspecifika
+variabler på ett ställe - enkelt att justera utan
+att röra tasks-koden.
+**Hur vi skapade den:** Vi identifierade alla
+portar och sökvägar som Wazuh Manager använder
+från den officiella dokumentationen och samlade
+dem här. `wazuh_alerts_log` och `wazuh_rules_dir`
+är viktiga för felsökning och dokumenteras i
+cheatsheet.md.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/wazuh_manager/vars/main.yml
+**Officiell dokumentation:** https://documentation.wazuh.com/current/user-manual/manager/
 
 📄 `ansible/roles/wazuh_agent/tasks/main.yml`
-**Vad den gör:** Lägger till Wazuh i systemets
-paketlista, installerar wazuh-agent med adressen
-till Manager (monitor .15) och startar agenten.
-**Varför den finns:** Varje server behöver en agent
-för att skicka säkerhetshändelser till Manager.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/cockpit-dashboard/ansible/roles/wazuh_agent/tasks/main.yml
-**Officiell dokumentation:** https://documentation.wazuh.com/current/installation-guide/wazuh-agent/index.html
+**Vad den gör:** Lägger till Wazuh GPG-nyckel och
+apt-repository, installerar Wazuh Agent med
+`WAZUH_MANAGER`-miljövariabeln satt till monitor-
+serverns IP och startar tjänsten.
+**Varför den finns:** Tasks-filen är rollens kärna -
+utan den gör rollen ingenting.
+**Hur vi skapade den:** Vi utgick från Wazuhs
+agentinstallationsdokumentation. `WAZUH_MANAGER`-
+miljövariabeln sätts under apt-installationen -
+det är Wazuhs rekommenderade sätt att peka agenten
+mot rätt manager utan att manuellt redigera
+konfigurationsfiler efteråt. `monitor_ip` hämtas
+från vars.yml.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/wazuh_agent/tasks/main.yml
+**Officiell dokumentation:** https://documentation.wazuh.com/current/installation-guide/wazuh-agent/
 
-📄 `vagrant/Vagrantfile` (uppdaterad)
-**Vad den gör:** Port forwarding 9090→9090 för
-monitor-servern. Det gör att Cockpit Dashboard
-går att nå från Windows-datorn via
-https://localhost:9090.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/cockpit-dashboard/vagrant/Vagrantfile
+📄 `ansible/roles/wazuh_agent/handlers/main.yml`
+**Vad den gör:** Definierar `Restart wazuh-agent` -
+körs bara när konfigurationen har ändrats.
+**Varför den finns:** Handlers förhindrar onödiga
+omstarter av agenten.
+**Hur vi skapade den:** Vi följde samma mönster som
+i tidigare roller.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/wazuh_agent/handlers/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
+
+📄 `ansible/roles/wazuh_agent/vars/main.yml`
+**Vad den gör:** Definierar `wazuh_manager_ip`
+som pekar på `monitor_ip` (192.168.56.15),
+agent-port (1514) och registreringsport (1515).
+**Varför den finns:** Separerar konfigurationsvärden
+från tasks-logiken. Om monitor-serverns IP ändras
+behöver vi bara uppdatera här.
+**Hur vi skapade den:** Vi identifierade de portar
+och IP-adresser som agenten behöver känna till.
+`wazuh_manager_ip` är en referens till `monitor_ip`
+från vars.yml - inga hårdkodade IP-adresser i
+rollkoden.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/wazuh_agent/vars/main.yml
+**Officiell dokumentation:** https://documentation.wazuh.com/current/user-manual/agents/
+
+📄 `ansible/roles/cockpit/tasks/main.yml`
+**Vad den gör:** Installerar Cockpit via apt och
+startar tjänsten på port 9090.
+**Varför den finns:** Cockpit är en separat tjänst
+med egen livscykel - den hör inte hemma i
+wazuh_manager-rollen.
+**Hur vi skapade den:** Vi utgick från Cockpits
+officiella dokumentation. Cockpit installeras med
+ett enkelt `apt`-anrop och startas med `service`-
+modulen. Installationen är enkel jämfört med Wazuh -
+Cockpit finns i Ubuntus standardrepository.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/cockpit/tasks/main.yml
+**Officiell dokumentation:** https://cockpit-project.org/running.html
+
+📄 `ansible/roles/cockpit/handlers/main.yml`
+**Vad den gör:** Definierar `Restart cockpit` -
+körs bara när konfigurationen har ändrats.
+**Varför den finns:** Handlers förhindrar onödiga
+omstarter av Cockpit.
+**Hur vi skapade den:** Vi följde samma mönster
+som i tidigare roller.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/cockpit/handlers/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
+
+📄 `ansible/roles/cockpit/vars/main.yml`
+**Vad den gör:** Definierar Cockpit-port (9090).
+**Varför den finns:** Separerar konfigurationsvärden
+från tasks-logiken.
+**Hur vi skapade den:** Vi identifierade Cockpits
+standardport och dokumenterade den här. Port 9090
+vidarebefordras från Windows-värddatorn via
+Vagrantfilen så att Cockpit är nåbar via
+`https://localhost:9090`.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/cockpit/vars/main.yml
+**Officiell dokumentation:** https://cockpit-project.org/
 
 ---
 
 ### Problem och lösningar
 
-**Problem 1 — Wazuh installationsskript krävde config-fil**
-**Felmeddelande:** Cannot find /tmp/wazuh-install-files.tar
-**Vad som hände:** Vi försökte använda Wazuh's
-officiella installationsskript. Det är designat
-för stora system med många servrar och krävde
-en config-fil och extra steg som inte behövs
-i vår lilla miljö.
-**Lösning:** Vi bytte till apt-installation via
-Wazuh's eget paketförråd. Det är enklare och
-fungerar bättre för oss.
-
-**Problem 2 — Wazuh Indexer kraschade med OOM**
-**Felmeddelande:** wazuh-indexer.service: A process has been killed by the OOM killer
-**Vad som hände:** Wazuh Indexer (OpenSearch) är
-en stor databas som behöver minst 2 GB RAM för
-sig själv. Monitor-servern hade bara 2 GB totalt
-— det räckte inte när wazuh-manager redan använde
-1.5 GB.
-**Lösning:** Vi tog bort wazuh-indexer och
-wazuh-dashboard och installerade Cockpit istället.
-Cockpit kräver bara ~100 MB RAM och ger ändå
-ett bra webbdashboard.
-
-**Problem 3 — Wazuh Indexer kraschade med SSL-fel**
-**Felmeddelande:** Unable to read the file /etc/wazuh-indexer/certs/root-ca.pem
-**Vad som hände:** Wazuh Indexer kräver SSL-certifikat
-som måste genereras med ett speciellt skript.
-Det är komplicerat att automatisera med Ansible.
-**Lösning:** Bekräftade beslutet att använda
-Cockpit istället för Wazuh Dashboard.
-
-**Problem 4 — server_name variabeln hittades inte**
-**Felmeddelande:** AnsibleUndefinedVariable: 'server_name' is undefined
-**Vad som hände:** Flask-rollen försökte använda
-variabeln server_name men filen
-flask/defaults/main.yml saknades på control-servern.
-**Lösning:** Skapade flask/defaults/main.yml med
-server_name: "Server 1" och laddade upp.
+**Problem 1 - Wazuh Dashboard krävde för mycket RAM**
+**Felmeddelande:**
+```
+fatal: [monitor]: FAILED! => {"msg": "Timeout
+waiting for Wazuh Dashboard to start"}
+```
+**Vad som hände:** Wazuh Dashboard tog för lång
+tid att starta och Ansible fick timeout. monitor
+har 2048 MB RAM - Wazuh Dashboard kräver minst
+4 GB för att fungera stabilt.
+**Varför det hände:** Wazuh Dashboard är en
+Elasticsearch-baserad applikation som är
+resurskrävande. Vår labbmiljö har begränsat RAM.
+**Lösning:** Tog bort Wazuh Dashboard från
+wazuh_manager-rollen och skapade en separat
+cockpit-roll istället. Cockpit är lättviktigt
+och ger tillräcklig systemöverblick för vårt syfte.
+Lade också till port forwarding 9090->9090 i
+Vagrantfilen för att nå Cockpit från Windows-
+värddatorn.
+**Resultat:** Cockpit startade korrekt och är
+nåbar via `https://localhost:9090` ✅
 
 ---
 
 ### Teorikoppling
 
-**Koncept 1: Vad är SIEM och HIDS?**
+**Koncept: SIEM - Security Information and Event Management**
 
-SIEM betyder Security Information and Event Management.
-Det samlar säkerhetsinformation från alla servrar
-på ett ställe. Istället för att logga in på varje
-server för att kolla loggar ser du allt på ett ställe.
+SIEM är ett system som samlar in och analyserar
+säkerhetshändelser från hela infrastrukturen på
+ett ställe. Utan SIEM måste man logga in på varje
+server separat för att se vad som hänt.
 
-HIDS betyder Host-based Intrusion Detection System.
-Det övervakar varje server och letar efter tecken
-på att någon försöker ta sig in.
+I det här projektet är Wazuh Manager på monitor
+SIEM-systemet. Agenter på alla fem andra servrar
+skickar händelser till Manager i realtid. Manager
+analyserar händelserna mot regeluppsättningar och
+skapar alerts vid misstänkt aktivitet.
 
-Wazuh kombinerar båda. Det är som att ha en
-väktare på varje server som rapporterar till en
-central ledningscentral.
+Typiska händelser som Wazuh övervakar är
+misslyckade SSH-inloggningar, ändringar i
+systemfiler, nya processer som startar och
+nätverksanslutningar till okända IP-adresser.
 
-**Officiell dokumentation:** https://documentation.wazuh.com/
+I produktionsmiljöer integreras SIEM med
+automatiska responssystem - t.ex. blockerar
+Wazuh automatiskt IP-adresser som utför
+brute-force-attacker via active response.
 
-**Koncept 2: Hotmodellering**
+**Officiell dokumentation:**
+- Wazuh: https://documentation.wazuh.com/
+- Cockpit: https://cockpit-project.org/
+- Ansible shell module: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
 
-Hotmodellering handlar om att tänka igenom vad
-som kan gå fel och hur systemet ska reagera.
-
-En viktig fråga i detta projekt är:
-"Vad händer om web1 komprometteras?"
-
-Med Wazuh på plats kan vi svara konkret:
-
-```
-Angriparen tar sig in på web1
-    ↓
-Wazuh Agent på web1 märker:
-  - Att viktiga filer ändrats
-  - Att ovanliga program startats
-  - Att misstänkta nätverksanslutningar skapats
-    ↓
-Varning skickas till Wazuh Manager på monitor
-    ↓
-Vi ser händelsen i Wazuh Manager-loggarna
-```
-
-Det är Defense-in-Depth i praktiken. Varje
-skyddslager kompenserar om ett annat bryts:
-- fail2ban stoppar brute-force-attacker
-- SSH-härdning blockerar lösenordsinloggning
-- auditd loggar systemhändelser
-- Wazuh samlar allt centralt
-- Cockpit ger visuell systemöversikt
-
-**Officiell dokumentation:** https://documentation.wazuh.com/current/getting-started/use-cases/index.html
-
-**Koncept 3: Idempotens med shell-modulen**
-
-shell-modulen i Ansible kör ett kommando varje
-gång playbooken körs. Det bryter mot principen
-om idempotens. Vi löser det med `args: creates:`
-som anger en fil som bara skapas vid första körningen.
-
-Om filen redan finns hoppar Ansible över steget.
-Det ger oss idempotens även med shell-kommandon.
-
-**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
-
-**Koncept 4: Cockpit — webbbaserad systemövervakning**
-
-Cockpit är ett verktyg som är inbyggt i Ubuntu.
-Det låter dig övervaka och hantera en Linux-server
-via webbläsaren. Ingen extra konfiguration behövs.
-
-Det visar CPU, minne, disk, nätverkstrafik,
-systemloggar och tjänster i realtid. Du kan till
-och med öppna en terminal direkt i webbläsaren.
-
-Det är perfekt för att visa systemstatus live
-under en presentation — enkelt, tydligt och
-professionellt.
-
-**Officiell dokumentation:** https://cockpit-project.org/documentation.html
-
-
-
+---
 ---
 
 ## Fas 8 — Verifieringsskript och rollstruktur
