@@ -91,6 +91,7 @@ Infrastructure-as-Code som används i alla moderna
 driftmiljöer.
 
 ---
+---
 
 ### Körda kommandon
 
@@ -189,16 +190,31 @@ Definierar IP-adresser, RAM, CPU och provisionerings-
 skript för varje server.
 **Varför den finns:** Hela infrastrukturen återskapas
 identiskt med `vagrant up` - på vilken dator som helst.
+**Hur vi skapade den:** Vi identifierade kraven för
+varje server - vilken IP, hur mycket RAM och vilken
+roll den har i systemet. Sedan använde vi Vagrants
+officiella dokumentation för syntax och
+provisioneringsblock. Varje server fick ett eget
+`config.vm.define`-block med namn, nätverk och
+VirtualBox-inställningar. Control fick ett extra
+provisionerings-skript som installerar Ansible.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/vagrant/Vagrantfile
 **Officiell dokumentation:** https://developer.hashicorp.com/vagrant/docs/vagrantfile
 
 📄 `.gitignore`
 **Vad den gör:** Ignorerar `vagrant/.vagrant/` och
-`vagrant/secrets.yml` så att de aldrig publiceras.
+`vagrant/secrets.yml` så att de aldrig publiceras
+på GitHub.
 **Varför den finns:** SSH-nycklar och lösenord som
 hamnar på GitHub är komprometterade för alltid -
 även om man tar bort dem efteråt finns de kvar i
 Git-historiken.
+**Hur vi skapade den:** Vi gick igenom projektmappen
+och identifierade alla filer som innehåller känslig
+information eller intern metadata. `vagrant/.vagrant/`
+innehåller SSH-nycklar och Vagrant-intern state.
+`vagrant/secrets.yml` innehåller databaslösenord.
+Båda lades till i `.gitignore` innan första push.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/.gitignore
 **Officiell dokumentation:** https://git-scm.com/docs/gitignore
 
@@ -208,18 +224,28 @@ Git-historiken.
 
 **Problem 1 - Ansible 2.10.8 för gammal**
 **Felmeddelande:** `ansible 2.10.8`
-**Orsak:** Ubuntu 22.04 installerar Ansible 2.10.8
-via apt - för gammal version som saknar moduler vi behöver.
+**Vad som hände:** Ubuntu 22.04 installerar Ansible
+2.10.8 via apt automatiskt. Den versionen saknar
+stöd för moduler vi behöver i projektet.
+**Varför det hände:** apt-paketet för Ansible på
+Ubuntu 22.04 är fryst på version 2.10.8 från 2021.
 **Lösning:** Uppdaterade provisioner-skriptet i
-Vagrantfilen till `pip3 install ansible`.
+Vagrantfilen från `apt-get install -y ansible` till
+`pip3 install ansible`. pip installerar alltid
+senaste versionen direkt från PyPI.
 **Resultat:** `ansible [core 2.17.14]` ✅
 
 **Problem 2 - Vagrant-filer spårades av Git**
-**Vad som hände:** Git spårade `vagrant/.vagrant/`
-med SSH-nycklar och intern Vagrant-metadata.
-**Orsak:** Ingen `.gitignore` fanns från början.
+**Vad som hände:** Git staging visade filer från
+`vagrant/.vagrant/` med SSH-nycklar på väg till
+GitHub.
+**Varför det hände:** Ingen `.gitignore` fanns -
+Git spårade alla filer inklusive Vagrants interna
+SSH-nycklar.
 **Lösning:** Skapade `.gitignore` och körde
-`git rm -r --cached vagrant/.vagrant/`.
+`git rm -r --cached vagrant/.vagrant/` för att
+avregistrera redan spårade filer från Git.
+**Resultat:** Inga känsliga filer publicerades ✅
 
 ---
 
@@ -245,7 +271,6 @@ i riktiga produktionsmiljöer.
 - VirtualBox: https://www.virtualbox.org/manual/
 
 ---
-
 ---
 
 ## Fas 2 - Ansible-konfiguration
@@ -327,14 +352,14 @@ E:\Secure-Infra-Lab\vagrant> vagrant upload ../ansible /home/vagrant/ansible con
 Filerna laddades upp till control ✅
 
 ```powershell
-# Testa att Ansible når alla servrar
+# Logga in på control för att testa Ansible
 E:\Secure-Infra-Lab\vagrant> vagrant ssh control
 ```
 
 #### Bash - control (192.168.56.10)
 
 ```bash
-# Verifiera att Ansible kan pinga alla servrar
+# Verifiera att Ansible når alla servrar
 vagrant@control:~$ cd ansible
 vagrant@control:~/ansible$ ansible all -m ping
 ```
@@ -347,7 +372,7 @@ E:\Secure-Infra-Lab> git add ansible/ansible.cfg ansible/inventory.ini ansible/s
 E:\Secure-Infra-Lab> git commit -m "Add Ansible config: ansible.cfg, inventory.ini, site.yml"
 E:\Secure-Infra-Lab> git push
 ```
-Projektet publicerades på GitHub ✅
+Commit bekräftades utan felmeddelanden ✅
 
 ---
 
@@ -359,6 +384,16 @@ Anger sökväg till inventory-filen, inaktiverar SSH
 host key-verifiering och aktiverar pipelining.
 **Varför den finns:** Utan den måste alla inställningar
 anges som flaggor vid varje kommandokörning.
+**Hur vi skapade den:** Vi läste Ansibles officiella
+dokumentation för `ansible.cfg` och identifierade
+de tre inställningar som alltid behövs i vår miljö.
+`host_key_checking = False` behövs för att Ansible
+inte ska fastna på SSH-verifiering i ett lokalt labb.
+`pipelining = True` under `[ssh_connection]` lades
+till efter att vi fick varningar om world-readable
+tmp-filer. Inventory-sökvägen pekar på
+`/home/vagrant/ansible/inventory.ini` eftersom
+Ansible körs från control-servern, inte från Windows.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/ansible.cfg
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/reference_appendices/config.html
 
@@ -369,6 +404,16 @@ Gruppnamnen har `_g`-suffix för att undvika
 namnkrockar mellan grupp och host.
 **Varför den finns:** Ansible kan inte kommunicera
 med servrarna utan denna fil.
+**Hur vi skapade den:** Vi hämtade IP-adresserna
+direkt från Vagrantfilen och skapade en grupp per
+server. control fick `ansible_connection=local`
+eftersom den kör Ansible lokalt - ingen SSH behövs.
+Övriga servrar fick `ansible_private_key_file`
+pekat på controls SSH-nyckel. Vi lade till
+`ansible_python_interpreter=/usr/bin/python3`
+explicit för att undvika varningar om Python-version.
+Gruppnamnen fick `_g`-suffix efter att Ansible
+varnade för namnkrockar mellan grupp och host.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/inventory.ini
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html
 
@@ -378,6 +423,15 @@ som körs på vilken server och i vilken ordning.
 Laddar variabler från `vars/vars.yml` och `secrets.yml`.
 **Varför den finns:** Körordningen är kritisk -
 databasen måste vara klar innan webbservrarna startar.
+**Hur vi skapade den:** Vi ritade upp flödet för
+systemet och bestämde körordningen: security_hardening
+körs först på alla servrar, sedan database, sedan
+web1 och web2, sedan nginx, sedan wazuh_manager och
+slutligen wazuh_agent. Varje servergrupp fick ett
+eget `play`-block med `hosts`, `vars_files` och
+`roles`. `secrets.yml` laddas separat från
+`vars/vars.yml` eftersom den är gitignorerad och
+innehåller lösenord.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/site.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_intro.html
 
@@ -385,7 +439,14 @@ databasen måste vara klar innan webbservrarna startar.
 **Vad den gör:** Centraliserad variabelfil med
 IP-adresser och portnummer som delas av alla roller.
 **Varför den finns:** Om en IP-adress ändras behöver
-vi bara uppdatera på ett ställe.
+vi bara uppdatera på ett ställe - inte i varje
+enskild roll.
+**Hur vi skapade den:** Vi gick igenom alla roller
+och identifierade vilka värden som används på flera
+ställen. IP-adresserna för alla sex servrar hämtades
+från Vagrantfilen och samlades här. Flask-port 5000
+och flask_user lades till eftersom de används av
+både flask-rollen och nginx-rollen.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/vars/vars.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html
 
@@ -394,22 +455,36 @@ vi bara uppdatera på ett ställe.
 ### Problem och lösningar
 
 **Problem 1 - Namnkrockar i inventory**
+**Felmeddelande:**
+```
+[WARNING]: Could not match supplied host pattern,
+ignoring: nginx
+```
 **Vad som hände:** Ansible varnade för namnkrockar
-mellan grupp och host - båda hette t.ex. `nginx`.
-**Orsak:** Ansible tillåter inte samma namn på
-grupp och host i samma inventory.
+när grupp och host hade samma namn - t.ex. hette
+både gruppen och hosten `nginx`.
+**Varför det hände:** Ansible tillåter inte samma
+namn på grupp och host i samma inventory-fil.
 **Lösning:** Döpte om alla grupper till `control_g`,
-`nginx_g`, `webserver_g` osv.
+`nginx_g`, `webserver_g`, `webserver2_g`,
+`database_g` och `monitor_g`.
+**Resultat:** Inga fler namnkrocksvarningar ✅
 
 **Problem 2 - World-readable tmp files-varning**
+**Felmeddelande:**
+```
+[WARNING]: Skipping plugin, cannot use a
+world-readable tmpfiles
+```
 **Vad som hände:** Ansible visade varning om
 world-readable temporära filer vid varje körning.
-**Orsak:** `allow_world_readable_tmpfiles = True`
-räcker inte - pipelining krävs.
+**Varför det hände:** `allow_world_readable_tmpfiles`
+räcker inte ensamt - pipelining måste också aktiveras.
 **Lösning:** Aktiverade `pipelining = True` under
 `[ssh_connection]` i `ansible.cfg`. Kräver också
-`Defaults !requiretty` i sudoers - konfigurerat
+`Defaults !requiretty` i sudoers - detta konfigureras
 av security_hardening-rollen i Fas 3.
+**Resultat:** Inga fler varningar ✅
 
 ---
 
@@ -429,14 +504,15 @@ försöker Flask ansluta till något som inte finns.
 
 I stora produktionsmiljöer används dynamiska
 inventories som uppdateras automatiskt när nya
-servrar startas i molnet.
+servrar startas i molnet. Nya servrar registreras
+direkt utan att någon behöver uppdatera en fil
+manuellt.
 
 **Officiell dokumentation:**
 - Ansible inventory: https://docs.ansible.com/ansible/latest/inventory_guide/
 - Ansible playbooks: https://docs.ansible.com/ansible/latest/playbook_guide/
 
 ---
-
 ---
 
 ## Fas 3 - security_hardening-rollen
@@ -456,11 +532,11 @@ auditd, distribuerar en härdad SSH-konfiguration och
 inaktiverar `requiretty` i sudoers för att Ansible
 pipelining ska fungera korrekt.
 
-Vi löste tre problem under fasen. Ansible kraschade
-för att roller saknades på disk. Windows skapade
-CRLF-radbrytningar som orsakade tolkningsfel på
-Linux. SSH-nyckeln från control distribuerades till
-alla servrar manuellt.
+Vi löste fyra problem under fasen. Ansible kraschade
+för att roller saknades på disk. SSH-nyckeldistrubueringen
+till monitor misslyckades. Windows skapade CRLF-
+radbrytningar som orsakade tolkningsfel på Linux.
+UFW blockerade Ansible efter härdning.
 
 Slutresultat: `ansible-playbook site.yml` kördes mot
 alla sex servrar med `failed=0` och inga varningar.
@@ -625,6 +701,15 @@ distribuerar SSH-konfiguration och inaktiverar
 requiretty i sudoers.
 **Varför den finns:** Tasks-filen är rollens kärna -
 utan den gör rollen ingenting.
+**Hur vi skapade den:** Vi utgick från Ansibles
+dokumentation för `apt`- och `service`-modulerna.
+Varje task fick ett tydligt `name`-fält på engelska.
+SSH-konfigurationen distribueras via `template`-
+modulen med `notify: Restart sshd` så att SSH bara
+startas om när konfigurationen faktiskt ändrats.
+`lineinfile`-modulen användes för att lägga till
+`Defaults !requiretty` i sudoers - det krävs för
+att pipelining ska fungera utan varningar.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/tasks/main.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_module.html
 
@@ -634,6 +719,12 @@ bara när `sshd_config` faktiskt har ändrats.
 **Varför den finns:** Handlers förhindrar onödiga
 omstarter - SSH startas bara om när konfigurationen
 förändrats.
+**Hur vi skapade den:** Vi läste Ansibles dokumentation
+för handlers och förstod att en handler bara triggas
+när en task notifierar den via `notify`. Det betyder
+att SSH bara startas om vid faktisk konfigurationsändring
+- inte vid varje playbook-körning. Det är viktigt för
+idempotens.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/handlers/main.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
 
@@ -646,8 +737,16 @@ efter 5 minuter.
 **Varför den finns:** En mall säkerställer identisk
 SSH-konfiguration på alla servrar - inga manuella
 avvikelser möjliga.
+**Hur vi skapade den:** Vi utgick från OpenSSH-
+dokumentationen och identifierade de inställningar
+som ger en säker SSH-konfiguration. `PermitRootLogin no`
+och `PasswordAuthentication no` är grundkrav.
+`MaxAuthTries 3` begränsar brute-force-försök.
+`ClientAliveInterval 300` stänger inaktiva sessioner
+efter 5 minuter. `AllowUsers vagrant` begränsar
+åtkomst till bara den användare vi faktiskt behöver.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/templates/sshd_config.j2
-**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html
+**Officiell dokumentation:** https://www.openssh.com/manual.html
 
 📄 `ansible/roles/security_hardening/vars/main.yml`
 **Vad den gör:** Definierar SSH-port (22), max
@@ -655,6 +754,10 @@ inloggningsförsök (3) och login grace time (30s).
 **Varför den finns:** Separerar konfigurationsvärden
 från tasks-logiken - enkelt att justera utan att
 röra tasks-koden.
+**Hur vi skapade den:** Vi identifierade alla värden
+i tasks och templates som kan behöva justeras och
+samlade dem här. Det gör det enkelt att ändra t.ex.
+`max_auth_tries` utan att behöva leta i tasks-filen.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/vars/main.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html
 
@@ -664,6 +767,12 @@ med LF-radbrytningar - oavsett operativsystem.
 **Varför den finns:** Windows använder CRLF och Linux
 använder LF. CRLF i YAML-filer orsakar tolkningsfel
 på Linux-servrarna.
+**Hur vi skapade den:** Vi läste Git-dokumentationen
+för `.gitattributes` och lade till regeln
+`* text=auto eol=lf` som tvingar LF för alla textfiler.
+Sedan konfigurerade vi Git lokalt med
+`core.autocrlf false` och `core.eol lf` och
+normaliserade alla befintliga filer.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/.gitattributes
 **Officiell dokumentation:** https://git-scm.com/docs/gitattributes
 
@@ -679,7 +788,7 @@ ERROR! the role 'database' was not found in
 ```
 **Vad som hände:** Ansible läser igenom hela site.yml
 innan den kör något. Den hittade roller som
-refererades men inte existerade på disk - och avbröt
+refererades men inte existerade på disk och avbröt
 direkt.
 **Varför det hände:** Vi hade definierat database,
 flask, nginx och wazuh_agent i site.yml men inte
@@ -700,7 +809,7 @@ monitor misslyckades. monitor är den tyngsta servern
 med 2048 MB RAM och hade precis startats om - SSH
 var inte redo än.
 **Varför det hände:** monitor behöver längre starttid
-än övriga servrar.
+än övriga servrar på grund av sitt RAM-behov.
 **Lösning:** Körde `vagrant reload monitor` och
 väntade tills servern var fullt uppstartad innan
 vi försökte igen.
