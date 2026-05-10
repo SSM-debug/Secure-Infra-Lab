@@ -1,4 +1,3 @@
----
 
 ## Teknisk dokumentation - Secure-Infra-Lab
 
@@ -1168,394 +1167,349 @@ avvikande beteende.
 
 ---
 
-## Fas 5 — flask-rollen
+## Fas 5 - flask-rollen
 **Datum:** 2026-05-06
 **Git-commits:**
 - `Add flask role: app.py, Gunicorn, systemd, env file`
 - `Fix flask role: server_name via host_vars, DB permissions, no warnings`
+- `Add wazuh_manager and wazuh_agent roles, fix flask defaults`
 
 ### Vad vi gjorde
 
-Vi byggde flask-rollen som installerar och konfigurerar
-Flask-applikationen på web1 och web2. En gemensam roll
-används för båda servrarna — skillnaden hanteras via
-`server_name`-variabeln. web1 får "Server 1" och web2
-får "Server 2".
+Vi designade och körde `flask`-rollen mot web1 och
+web2. Rollen installerar Python, Flask och Gunicorn,
+kopierar applikationskoden till servern och skapar
+en systemd-tjänst som startar Flask automatiskt vid
+omstart.
 
-Rollen installerar Python, Flask och Gunicorn, kopierar
-app.py till servern, skapar en `.env`-fil med
-databasuppgifter och registrerar en systemd-tjänst som
-startar om Flask automatiskt vid krasch.
+Samma roll används för båda servrarna. Skillnaden
+hanteras via `server_name`-variabeln - web1 får
+"Server 1" via `defaults/main.yml` och web2 får
+"Server 2" via `host_vars/web2.yml`. Det är ett
+rent och skalbart sätt att hantera per-host-skillnader
+utan att duplicera rollkod.
 
-Vi stötte på flera problem under fasen. BOM-tecken i
-filer orsakade tolkningsfel. `server_name`-variabeln
-åsidosattes inte korrekt för web2. Flask saknade
-rättigheter att skriva till visits-tabellen. Alla
-problem löste vi permanent.
-
-Slutresultat: Båda servrarna svarar korrekt.
-`/visit` sparar besök i databasen och visar de 5
-senaste besöken. Inga varningar.
+Vi löste också ett problem med `server_name` som
+från början låg i `vars/main.yml` - det blockerade
+host_vars från att fungera korrekt.
 
 ---
 
 ### Rollöversikt
 
 ```
-flask-rollen gör fem saker:
-1. Installerar Python, Flask och Gunicorn
-2. Kopierar app.py till servern
-3. Skapar en .env-fil med databasuppgifter
-4. Registrerar en systemd-tjänst som startar Flask automatiskt
-5. Startar och aktiverar tjänsten
+flask-rollen gör sex saker:
+1. Installerar Python3, pip och psycopg2
+2. Installerar Flask och Gunicorn via pip
+3. Kopierar app.py till servern
+4. Skapar miljöfilen med databasuppgifter via Jinja2-mall
+5. Distribuerar systemd-tjänstfilen via Jinja2-mall
+6. Startar och aktiverar Flask-tjänsten
 ```
 
-En gemensam roll används för både web1 och web2.
-Skillnaden hanteras via server_name-variabeln:
-
-- web1 → server_name: "Server 1" (default i defaults/main.yml)
-- web2 → server_name: "Server 2" (åsidosatt via host_vars/web2.yml)
+Rollen körs på web1 och web2 - identisk kod,
+olika server_name per host.
 
 ### Filöversikt
 
 ```
-flask/
-├── files/
-│   └── app.py              ✅
-├── handlers/
-│   └── main.yml            ✅
-├── tasks/
-│   └── main.yml            ✅
-├── templates/
-│   ├── flask.service.j2    ✅
-│   └── flask.env.j2        ✅
-├── vars/
-│   └── main.yml            ✅
-└── defaults/
-    └── main.yml            ✅
-
 ansible/
-└── host_vars/
-    └── web2.yml            ✅
+├── host_vars/
+│   └── web2.yml                ✅
+└── roles/
+    └── flask/
+        ├── defaults/
+        │   └── main.yml        ✅
+        ├── files/
+        │   └── app.py          ✅
+        ├── handlers/
+        │   └── main.yml        ✅
+        ├── tasks/
+        │   └── main.yml        ✅
+        ├── templates/
+        │   ├── flask.env.j2    ✅
+        │   └── flask.service.j2 ✅
+        └── vars/
+            └── main.yml        ✅
 ```
-
----
 
 ### Varför detta steg är viktigt
 
-Flask-applikationen är kärnan i systemet — det är
-den som tar emot besök, kommunicerar med databasen
-och returnerar svar till användaren. Utan en korrekt
-konfigurerad Flask-applikation fungerar inget av
-det övriga systemet. systemd-tjänsten säkerställer
-att applikationen alltid körs och automatiskt
-startar om vid eventuella krascher.
+Flask-applikationen är kärnan i systemet. Den tar
+emot besök, kommunicerar med databasen och returnerar
+svar till användaren via nginx.
+
+Gunicorn används som produktions-WSGI-server istället
+för Flasks inbyggda utvecklingsserver - den är
+stabilare och hanterar flera samtidiga anslutningar.
+systemd säkerställer att tjänsten startar automatiskt
+vid omstart och startas om om den kraschar.
 
 ---
 
 ### Körda kommandon
 
-#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
+#### Windows - PowerShell
 
 ```powershell
 # Skapa mappstruktur för flask-rollen
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\flask\handlers
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\flask\templates
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\flask\files
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\flask\vars
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\flask\defaults
+E:\Secure-Infra-Lab> mkdir ansible\roles\flask\tasks
+E:\Secure-Infra-Lab> mkdir ansible\roles\flask\handlers
+E:\Secure-Infra-Lab> mkdir ansible\roles\flask\files
+E:\Secure-Infra-Lab> mkdir ansible\roles\flask\templates
+E:\Secure-Infra-Lab> mkdir ansible\roles\flask\vars
+E:\Secure-Infra-Lab> mkdir ansible\roles\flask\defaults
+E:\Secure-Infra-Lab> mkdir ansible\host_vars
 ```
-Förväntat output: Inga felmeddelanden.
-Vad vi fick: Alla mappar skapades korrekt. ✅
+Alla mappar skapades utan felmeddelanden ✅
 
 ```powershell
-# Öppna rollfilerna i VS Code
-# Viktigt: Spara alltid som UTF-8 (inte UTF-8 with BOM)
-# Klicka på "UTF-8 with BOM" längst ner i VS Code
-# och välj "Save with Encoding" -> "UTF-8"
-PS E:\Secure-Infra-Lab> code ansible\roles\flask\files\app.py
-PS E:\Secure-Infra-Lab> code ansible\roles\flask\handlers\main.yml
-PS E:\Secure-Infra-Lab> code ansible\roles\flask\tasks\main.yml
-PS E:\Secure-Infra-Lab> code ansible\roles\flask\templates\flask.env.j2
-PS E:\Secure-Infra-Lab> code ansible\roles\flask\templates\flask.service.j2
-PS E:\Secure-Infra-Lab> code ansible\roles\flask\vars\main.yml
-PS E:\Secure-Infra-Lab> code ansible\roles\flask\defaults\main.yml
+# Skapa och konfigurera rollfilerna i VS Code
+E:\Secure-Infra-Lab> code ansible\roles\flask\tasks\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\flask\handlers\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\flask\files\app.py
+E:\Secure-Infra-Lab> code ansible\roles\flask\templates\flask.env.j2
+E:\Secure-Infra-Lab> code ansible\roles\flask\templates\flask.service.j2
+E:\Secure-Infra-Lab> code ansible\roles\flask\vars\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\flask\defaults\main.yml
+E:\Secure-Infra-Lab> code ansible\host_vars\web2.yml
 ```
-Förväntat output: VS Code öppnar varje fil.
-Vad vi fick: Filerna öppnades korrekt. ✅
+Alla filer skapades och konfigurerades i VS Code ✅
 
 ```powershell
-# Konvertera filer till LF och ta bort CRLF
-PS E:\Secure-Infra-Lab> $files = @(
-    "ansible\roles\flask\files\app.py",
-    "ansible\roles\flask\handlers\main.yml",
-    "ansible\roles\flask\tasks\main.yml",
-    "ansible\roles\flask\templates\flask.env.j2",
-    "ansible\roles\flask\templates\flask.service.j2",
-    "ansible\roles\flask\vars\main.yml",
-    "ansible\site.yml"
-)
-foreach ($file in $files) {
-    $content = [System.IO.File]::ReadAllText("E:\Secure-Infra-Lab\$file")
-    $content = $content -replace "`r`n", "`n"
-    [System.IO.File]::WriteAllText("E:\Secure-Infra-Lab\$file", $content, [System.Text.Encoding]::UTF8)
-    Write-Host "Converted: $file"
-}
+# Ladda upp filerna till control-servern
+cd E:\Secure-Infra-Lab\vagrant
+E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible /home/vagrant/ansible control
 ```
-Förväntat output: Converted: [filnamn] för varje fil.
-Vad vi fick: Alla filer konverterades korrekt. ✅
+Filerna laddades upp till control ✅
 
 ```powershell
-# Skapa host_vars för web2 — ger server_name: "Server 2"
-PS E:\Secure-Infra-Lab> mkdir ansible\host_vars
-PS E:\Secure-Infra-Lab> code ansible\host_vars\web2.yml
+# Committa till GitHub
+cd E:\Secure-Infra-Lab
+E:\Secure-Infra-Lab> git add ansible/roles/flask/ ansible/host_vars/
+E:\Secure-Infra-Lab> git commit -m "Add flask role: app.py, Gunicorn, systemd, env file"
+E:\Secure-Infra-Lab> git push
 ```
-Förväntat output: VS Code öppnar en tom fil.
-Vad vi fick: Filen öppnades korrekt. ✅
+Commit bekräftades utan felmeddelanden ✅
 
-```powershell
-# Ladda upp alla flask-filer till control-VM
-PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control -c "mkdir -p /home/vagrant/ansible/roles/flask/files /home/vagrant/ansible/roles/flask/handlers /home/vagrant/ansible/roles/flask/templates /home/vagrant/ansible/roles/flask/vars /home/vagrant/ansible/roles/flask/defaults /home/vagrant/ansible/host_vars"
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\flask\files\app.py /home/vagrant/ansible/roles/flask/files/app.py control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\flask\handlers\main.yml /home/vagrant/ansible/roles/flask/handlers/main.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\flask\tasks\main.yml /home/vagrant/ansible/roles/flask/tasks/main.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\flask\templates\flask.env.j2 /home/vagrant/ansible/roles/flask/templates/flask.env.j2 control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\flask\templates\flask.service.j2 /home/vagrant/ansible/roles/flask/templates/flask.service.j2 control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\flask\vars\main.yml /home/vagrant/ansible/roles/flask/vars/main.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\flask\defaults\main.yml /home/vagrant/ansible/roles/flask/defaults/main.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\host_vars\web2.yml /home/vagrant/ansible/host_vars/web2.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\site.yml /home/vagrant/ansible/site.yml control
-```
-Förväntat output: Upload has completed successfully! för varje fil.
-Vad vi fick: Alla filer laddades upp korrekt. ✅
-
-```powershell
-# Committa och pusha till GitHub
-PS E:\Secure-Infra-Lab> git add ansible/roles/flask ansible/roles/database ansible/site.yml ansible/host_vars .gitignore
-PS E:\Secure-Infra-Lab> git commit -m "Fix flask role: server_name via host_vars, DB permissions, no warnings"
-PS E:\Secure-Infra-Lab> git push
-```
-Förväntat output: feature/flask-role -> feature/flask-role
-Vad vi fick: Exakt det förväntade. ✅
-
----
-
-#### Bash — inuti control-servern
+#### Bash - control (192.168.56.10)
 
 ```bash
-# Kör playbooken mot web1
-vagrant@control:~/ansible$ ansible-playbook site.yml --limit webserver_g
+# Logga in på control och kör playbooken
+vagrant@control:~$ cd ansible
+vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
-Förväntat output: web1 : ok=16  changed=7  failed=0
-Vad vi fick: Exakt det förväntade. ✅
+Förväntat output: `failed=0` på alla servrar ✅
 
 ```bash
-# Verifiera att Flask svarar på web1
-vagrant@control:~/ansible$ curl -s http://192.168.56.12:5000/
+# Verifiera att Flask svarar på web1 och web2
+vagrant@control:~/ansible$ curl http://192.168.56.12:5000/
+vagrant@control:~/ansible$ curl http://192.168.56.13:5000/
 ```
-Förväntat output: Hello from Server 1!
-Vad vi fick: Hello from Server 1! ✅
+```
+Hello from Server 1!
+Hello from Server 2!
+```
+Båda servrarna svarade korrekt ✅
 
 ```bash
-# Kör playbooken mot web2
-vagrant@control:~/ansible$ ansible-playbook site.yml --limit webserver2_g
+# Verifiera idempotens
+vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
-Förväntat output: web2 : ok=16  changed=7  failed=0
-Vad vi fick: Exakt det förväntade. ✅
-
-```bash
-# Verifiera att Flask svarar på web2
-vagrant@control:~/ansible$ curl -s http://192.168.56.13:5000/
-```
-Förväntat output: Hello from Server 2!
-Vad vi fick (först): Hello from Server 1! — fel server_name ❌
-Fel: server_name från vars/main.yml hade högre prioritet än host_vars.
-Lösning: Flyttade server_name till defaults/main.yml och skapade
-host_vars/web2.yml med server_name: "Server 2".
-Vad vi fick slutligen: Hello from Server 2! ✅
-
-```bash
-# Testa /visit-routen
-vagrant@control:~/ansible$ curl -s http://192.168.56.12:5000/visit
-vagrant@control:~/ansible$ curl -s http://192.168.56.13:5000/visit
-```
-Förväntat output: Visit registered from Server 1/2 med senaste besök.
-Vad vi fick (först): 500 Internal Server Error ❌
-Fel: psycopg2.errors.InsufficientPrivilege: permission denied for table visits
-Orsak: flaskuser saknade SELECT och INSERT-rättigheter på visits-tabellen.
-Lösning: Lade till GRANT-kommandon i schema.sql.j2.
-Vad vi fick slutligen:
-```
-Server 1: <h2>Visit registered from Server 1</h2>
-Server 2: <h2>Visit registered from Server 2</h2>
-```
-✅
+Förväntat output: `changed=0` på alla servrar ✅
 
 ---
 
 ### Konfigurationsfiler
 
-📄 `ansible/roles/flask/files/app.py`
-**Vad den gör:** Flask-applikationen med tre routes:
-/ (hello), /secret (visar env-variabler), /visit
-(sparar besök i databasen och visar de 5 senaste).
-Läser alla credentials från miljövariabler via os.getenv().
-**Varför den finns:** Applikationskoden som körs på web1
-och web2. Aldrig hårdkodade lösenord i källkod.
-**Hur vi skrev den:** Vi följde Flask-dokumentationen
-för routes och psycopg2-dokumentationen för
-databasanslutning.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/flask-role/ansible/roles/flask/files/app.py
-**Officiell dokumentation:**
-- Flask: https://flask.palletsprojects.com/en/3.0.x/
-- psycopg2: https://www.psycopg.org/docs/
+📄 `ansible/roles/flask/tasks/main.yml`
+**Vad den gör:** Installerar Python, Flask och
+Gunicorn, kopierar app.py, skapar miljöfilen och
+systemd-tjänstfilen och startar Flask-tjänsten.
+**Varför den finns:** Tasks-filen är rollens kärna -
+utan den gör rollen ingenting.
+**Hur vi skapade den:** Vi utgick från Ansibles
+dokumentation för `apt`-, `pip`-, `copy`-,
+`template`- och `service`-modulerna. Varje steg i
+Flask-applikationens livscykel fick en egen task.
+`notify: Restart flask` lades till på tasks som
+kopierar filer - det säkerställer att Flask startas
+om bara när koden eller konfigurationen faktiskt
+ändrats. `mode: '0600'` på miljöfilen hindrar andra
+användare från att läsa databasuppgifterna.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/flask/tasks/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/collections/ansible/builtin/
 
-📄 `ansible/roles/flask/templates/flask.service.j2`
-**Vad den gör:** systemd-tjänstfil för Flask via Gunicorn.
-Startar om tjänsten automatiskt vid krasch. Laddar
-miljövariabler från .env-filen. Körs som vagrant-användaren
-— aldrig som root.
-**Varför den finns:** systemd säkerställer att Flask alltid
-körs och startar automatiskt när servern bootar.
-**Hur vi skrev den:** Vi följde systemd-dokumentationen
-för service-filer och Gunicorn-dokumentationen för
-korrekt startkommando.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/flask-role/ansible/roles/flask/templates/flask.service.j2
-**Officiell dokumentation:**
-- systemd: https://systemd.io/
-- Gunicorn: https://docs.gunicorn.org/
+📄 `ansible/roles/flask/handlers/main.yml`
+**Vad den gör:** Definierar `Restart flask` - körs
+bara när app.py, miljöfilen eller systemd-tjänsten
+har ändrats.
+**Varför den finns:** Handlers förhindrar onödiga
+omstarter - Flask startas bara om när konfigurationen
+faktiskt förändrats.
+**Hur vi skapade den:** Vi följde samma mönster som
+i tidigare roller. En handler per tjänst som behöver
+startas om. Tre tasks i tasks/main.yml notifierar
+samma handler - Ansible är smart nog att bara köra
+handleren en gång per playbook-körning.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/flask/handlers/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
+
+📄 `ansible/roles/flask/files/app.py`
+**Vad den gör:** Flask-applikationen med tre routes.
+`/` returnerar ett enkelt hälsningsmeddelande med
+servernamnet. `/secret` visar vilka miljövariabler
+som är laddade. `/visit` sparar besöket i databasen
+och visar de fem senaste besöken.
+**Varför den finns:** app.py är applikationskoden
+som bevisar att hela infrastrukturen fungerar -
+lastbalansering, databasanslutning och redundans.
+**Hur vi skapade den:** Vi identifierade tre krav:
+visa vilket server som svarar, verifiera miljövariabler
+och bevisa databasanslutning. Alla databasuppgifter
+läses från miljövariabler via `os.getenv()` - inga
+hårdkodade lösenord i koden. `psycopg2` används för
+PostgreSQL-anslutningen. `/visit`-routen sparar
+`SERVER_NAME` i databasen och hämtar de fem senaste
+besöken för att visa att lastbalansering fungerar.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/flask/files/app.py
+**Officiell dokumentation:** https://flask.palletsprojects.com/
 
 📄 `ansible/roles/flask/templates/flask.env.j2`
-**Vad den gör:** Miljövariabler för Flask — databasuppgifter
-och server_name. Filen är bara läsbar av root (mode 0600).
-Flask läser den via systemd EnvironmentFile-direktivet.
-**Varför den finns:** Credentials ska aldrig vara i
-källkod. .env-filen separerar konfiguration från kod.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/flask-role/ansible/roles/flask/templates/flask.env.j2
+**Vad den gör:** Jinja2-mall för miljöfilen som
+innehåller databasuppgifter och servernamn.
+Distribueras till varje server med `mode: '0600'`
+så bara root kan läsa den.
+**Varför den finns:** Miljöfilen håller känsliga
+uppgifter separerade från koden. app.py läser dem
+via `os.getenv()` - inga lösenord i källkoden.
+**Hur vi skapade den:** Vi identifierade alla
+variabler app.py behöver - databasuppgifter från
+`secrets.yml` och `server_name` från host_vars.
+`DB_HOST` pekar på `database_ip` från vars.yml.
+`SERVER_NAME` sätts från `server_name`-variabeln
+som är olika per host.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/flask/templates/flask.env.j2
+**Officiell dokumentation:** https://flask.palletsprojects.com/en/stable/config/
+
+📄 `ansible/roles/flask/templates/flask.service.j2`
+**Vad den gör:** Jinja2-mall för systemd-tjänstfilen.
+Startar Gunicorn med två workers, laddar miljöfilen
+och startar om tjänsten automatiskt om den kraschar.
+**Varför den finns:** systemd säkerställer att
+Flask-tjänsten startar automatiskt vid omstart och
+återhämtar sig från krascher utan manuell inblandning.
+**Hur vi skapade den:** Vi utgick från systemds
+dokumentation och Gunicorns rekommendationer.
+`User={{ flask_user }}` kör tjänsten som vagrant
+- aldrig som root. `NoNewPrivileges=true` och
+`PrivateTmp=true` är extra säkerhetshärdningar som
+begränsar vad tjänsten kan göra på systemet.
+`Restart=always` med `RestartSec=3` ger automatisk
+återhämtning efter krascher.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/flask/templates/flask.service.j2
+**Officiell dokumentation:** https://www.freedesktop.org/software/systemd/man/systemd.service.html
+
+📄 `ansible/roles/flask/vars/main.yml`
+**Vad den gör:** Definierar flask_app_dest,
+flask_env_file, flask_port (5000), flask_user
+(vagrant) och flask_log.
+**Varför den finns:** Samlar alla rollspecifika
+variabler på ett ställe - enkelt att justera utan
+att röra tasks-koden.
+**Hur vi skapade den:** Vi identifierade alla
+hårdkodade värden i tasks och templates och samlade
+dem här. `server_name` togs bort från vars/main.yml
+efter att vi förstod att vars har högre prioritet
+än host_vars - det blockerade web2 från att få
+"Server 2".
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/flask/vars/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html
 
 📄 `ansible/roles/flask/defaults/main.yml`
-**Vad den gör:** Standardvärden för flask-rollen.
-server_name är satt till "Server 1" som default.
-**Varför den finns:** defaults/main.yml har lägre prioritet
-än host_vars — det gör att host_vars/web2.yml kan
-åsidosätta server_name för web2.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/flask-role/ansible/roles/flask/defaults/main.yml
+**Vad den gör:** Definierar standardvärdet
+`server_name: "Server 1"` med lägsta prioritet.
+**Varför den finns:** defaults/main.yml har lägsta
+prioritet i Ansible - host_vars kan överskriva den.
+web1 använder standardvärdet "Server 1" och web2
+får "Server 2" via host_vars/web2.yml.
+**Hur vi skapade den:** Vi förstod att `server_name`
+i vars/main.yml hade för hög prioritet och blockerade
+host_vars. Lösningen var att flytta `server_name`
+till defaults/main.yml där den kan överskridas av
+host_vars.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/flask/defaults/main.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html#variable-precedence-where-should-i-put-a-variable
 
 📄 `ansible/host_vars/web2.yml`
-**Vad den gör:** Åsidosätter server_name för web2 specifikt.
-**Varför den finns:** host_vars har högre prioritet än
-defaults/main.yml men lägre än vars/main.yml. Det gör
-att vi kan ge web2 ett unikt server_name utan att ändra
-den gemensamma rollen.
-**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/feature/flask-role/ansible/host_vars/web2.yml
+**Vad den gör:** Definierar `server_name: "Server 2"`
+specifikt för web2-hosten.
+**Varför den finns:** host_vars överskriver defaults
+för ett specifikt host. Det gör att samma flask-roll
+kan ge olika server_name till web1 och web2 utan
+att duplicera rollkoden.
+**Hur vi skapade den:** Vi läste Ansibles dokumentation
+om variabelprioritering och förstod att host_vars
+har högre prioritet än defaults men lägre än vars.
+Lösningen var att kombinera defaults/main.yml med
+host_vars/web2.yml - web1 får standardvärdet och
+web2 får sitt egna värde.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/host_vars/web2.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html#organizing-host-and-group-variables
 
 ---
 
 ### Problem och lösningar
 
-**Problem 1 — BOM-tecken i filer**
-**Felmeddelande:** Filer började med osynligt tecken (﻿)
-**Vad som hände:** VS Code sparade filer med UTF-8 with BOM
-istället för UTF-8. BOM-tecknet orsakar tolkningsfel i
-YAML och Python på Linux.
-**Lösning:** Klicka på "UTF-8 with BOM" i VS Code statusfält
-och välj "Save with Encoding" → "UTF-8".
-**Lärdomen:** Kontrollera alltid filkodning i VS Code när
-nya filer skapas — spara alltid som UTF-8 utan BOM.
-
-**Problem 2 — server_name åsidosattes inte för web2**
-**Felmeddelande:** Hello from Server 1! på båda servrarna
-**Vad som hände:** server_name i vars/main.yml har högre
-prioritet än vars: i site.yml och host_vars. Ansible
-använde alltid "Server 1" oavsett vad vi satte.
-**Lösning:** Flyttade server_name till defaults/main.yml
-(lägre prioritet) och skapade host_vars/web2.yml med
-server_name: "Server 2". host_vars åsidosätter defaults.
-**Lärdomen:** Ansible variabelprioritet från högst till lägst:
-extra vars → host_vars → group_vars → play vars →
-role vars → role defaults
-
-**Problem 3 — permission denied for table visits**
-**Felmeddelande:** psycopg2.errors.InsufficientPrivilege:
-permission denied for table visits
-**Vad som hände:** flaskuser skapades men fick inte
-explicit GRANT på visits-tabellen och dess sekvens.
-**Lösning:** Lade till GRANT SELECT, INSERT ON visits och
-GRANT USAGE, SELECT ON SEQUENCE visits_id_seq i
-schema.sql.j2.
-**Lärdomen:** I PostgreSQL räcker det inte att äga databasen —
-varje tabell och sekvens måste ha explicita rättigheter.
-
-**Problem 4 — PostgreSQL lyssnade bara på localhost**
-**Felmeddelande:** connection to server at "192.168.56.14",
-port 5432 failed: Connection refused
-**Vad som hände:** listen_addresses var konfigurerat till
-specifika IP-adresser men PostgreSQL startades inte om
-efter konfigurationsändringen.
-**Lösning:** Ändrade listen_addresses till '*' i database-rollen
-och lät UFW-reglerna begränsa åtkomsten till bara
-web1 och web2 på port 5432.
-**Lärdomen:** listen_addresses = '*' är acceptabelt när
-UFW-regler begränsar åtkomsten explicit. Defense-in-Depth
-via brandvägg kompenserar för den öppna listen_addresses.
+**Problem 1 - server_name fungerade inte för web2**
+**Felmeddelande:**
+```
+curl http://192.168.56.13:5000/
+Hello from Server 1!
+```
+**Vad som hände:** Båda servrarna visade "Server 1"
+trots att web2 skulle visa "Server 2".
+**Varför det hände:** `server_name` var definierad
+i `vars/main.yml` med värdet "Server 1". Ansible
+variabelprioritering: vars/main.yml har högre
+prioritet än host_vars - vilket blockerade web2
+från att få sitt egna värde.
+**Lösning:** Tog bort `server_name` från vars/main.yml
+och skapade defaults/main.yml med `server_name:
+"Server 1"`. defaults har lägsta prioritet - host_vars
+kan nu överskriva den. Skapade host_vars/web2.yml
+med `server_name: "Server 2"`.
+**Resultat:** web1 visar "Server 1" och web2 visar
+"Server 2" ✅
 
 ---
 
 ### Teorikoppling
 
-**Koncept 1: Ansible variabelprioritet**
+**Koncept: Ansible variabelprioritering**
 
 Ansible har en strikt prioritetsordning för variabler.
-Från högst till lägst prioritet:
+Från lägst till högst prioritet gäller bland annat:
+defaults - host_vars - vars - extra_vars.
 
-1. Extra vars (-e flagga vid körning)
-2. host_vars — variabler per specifik host
-3. group_vars — variabler per grupp
-4. play vars: i site.yml
-5. role vars/main.yml — högst inom rollen
-6. role defaults/main.yml — lägst inom rollen
+I det här projektet utnyttjas detta medvetet.
+`server_name` läggs i defaults/main.yml med lägsta
+prioritet. host_vars/web2.yml överskriver den bara
+för web2. web1 använder standardvärdet "Server 1"
+och web2 får "Server 2" - utan att duplicera rollkod.
 
-I det här projektet använder vi defaults/main.yml
-för standardvärden och host_vars/web2.yml för att
-åsidosätta server_name på web2. Det ger en ren
-och förutsägbar konfiguration.
-
-**Officiell dokumentation:**
-https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html#variable-precedence-where-should-i-put-a-variable
-
-**Koncept 2: systemd och tjänstehantering**
-
-systemd är Linuxs tjänstehanterare. Det startar,
-stoppar och övervakar tjänster. Med Restart=always
-i flask.service.j2 startar systemd om Flask automatiskt
-om den kraschar — utan manuell intervention.
-
-I produktionsmiljöer är detta kritiskt. En applikation
-som kraschar klockan 3 på natten startar om
-automatiskt utan att någon behöver vakna och
-logga in manuellt.
-
-**Officiell dokumentation:** https://systemd.io/
-
-**Koncept 3: Separation av konfiguration och kod**
-
-.env-filen separerar konfiguration från kod. app.py
-läser aldrig hårdkodade lösenord — den läser dem
-alltid från miljövariabler via os.getenv().
-
-Det här gör att samma kod kan köras i olika miljöer
-(test, staging, produktion) med olika konfiguration
-utan att ändra en enda rad kod. Det är en av de
-12 principerna i The Twelve-Factor App — en
-standard för moderna webbapplikationer.
+I produktionsmiljöer används samma mönster för att
+hantera miljöspecifika skillnader - t.ex. olika
+databasservrar för test och produktion - med samma
+roller och playbooks.
 
 **Officiell dokumentation:**
-- The Twelve-Factor App: https://12factor.net/config
-- Python os.getenv: https://docs.python.org/3/library/os.html#os.getenv
+- Flask: https://flask.palletsprojects.com/
+- Gunicorn: https://gunicorn.org/
+- systemd: https://www.freedesktop.org/software/systemd/man/
+- Ansible variabelprioritering: https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html#variable-precedence-where-should-i-put-a-variable
 
-
+---
 ---
 
 ## Fas 6 — nginx-rollen
