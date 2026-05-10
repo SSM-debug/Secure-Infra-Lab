@@ -1,6 +1,5 @@
 ---
-# Projektlogg — Secure-Infra-Lab
----
+# Teknisk dokumentation - Secure-Infra-Lab
 
 
 **Projekt:** Secure-Infra-Lab  
@@ -440,34 +439,28 @@ servrar startas i molnet.
 
 ---
 
-## Fas 3 — security_hardening-rollen
-**Datum:** 2026-05-04
+## Fas 3 - security_hardening-rollen
+**Datum:** 2026-05-03
 **Git-commits:**
 - `Add security_hardening role: SSH hardening, fail2ban, auditd`
-- `Add vars/vars.yml with network and Flask variables`
 - `Add .gitattributes: enforce LF line endings for all files`
 - `Normalize line endings to LF across all files`
-- `Add placeholder roles: database, flask, nginx, wazuh_agent`
+- `Fix: clean inventory groups, pipelining, SSH UFW rule, no warnings`
+- `Add role structure: cockpit role, vars and handlers for all roles`
 
 ### Vad vi gjorde
 
-Vi byggde `security_hardening`-rollen och körde den
-mot alla sex servrar. Rollen gör tre saker: den
-distribuerar en härdad SSH-konfiguration, installerar
-fail2ban som blockerar inloggningsattacker och
-installerar auditd som loggar systemhändelser.
+Vi designade och körde `security_hardening`-rollen
+mot alla sex servrar. Rollen installerar fail2ban och
+auditd, distribuerar en härdad SSH-konfiguration och
+inaktiverar `requiretty` i sudoers för att Ansible
+pipelining ska fungera korrekt.
 
-Vi stötte på flera problem under fasen. Ansible
-kraschade för att rollerna för database, flask, nginx
-och wazuh_agent inte existerade än. Control-servern
-saknade SSH-nyckel för att nå de andra servrarna.
-Windows konverterade radbrytningar på fel sätt.
-Alla tre problem löste vi permanent.
-
-Vi lade också till `Defaults !requiretty` i sudoers
-via security_hardening-rollen. Det krävs för att
-Ansible pipelining ska fungera korrekt — vilket
-eliminerar world-readable tmp files-varningen.
+Vi löste tre problem under fasen. Ansible kraschade
+för att roller saknades på disk. Windows skapade
+CRLF-radbrytningar som orsakade tolkningsfel på
+Linux. SSH-nyckeln från control distribuerades till
+alla servrar manuellt.
 
 Slutresultat: `ansible-playbook site.yml` kördes mot
 alla sex servrar med `failed=0` och inga varningar.
@@ -480,324 +473,197 @@ Idempotens bekräftad på andra körningen med
 
 ```
 security_hardening-rollen gör fyra saker:
-1. Uppdaterar paketcachen och installerar fail2ban och auditd
-2. Distribuerar en härdad SSH-konfiguration
+1. Installerar fail2ban och auditd
+2. Distribuerar härdad SSH-konfiguration via Jinja2-mall
 3. Startar och aktiverar säkerhetstjänsterna
 4. Inaktiverar requiretty i sudoers för Ansible pipelining
 ```
 
-Rollen körs på samtliga 6 servrar — alltid först
+Rollen körs på samtliga 6 servrar - alltid först
 innan någon annan roll körs.
 
 ### Filöversikt
 
 ```
 ansible/
-├── .gitattributes                              ✅
+├── .gitattributes              ✅
 └── roles/
     └── security_hardening/
         ├── tasks/
-        │   └── main.yml                        ✅
+        │   └── main.yml        ✅
         ├── handlers/
-        │   └── main.yml                        ✅
-        └── templates/
-            └── sshd_config.j2                  ✅
+        │   └── main.yml        ✅
+        ├── templates/
+        │   └── sshd_config.j2  ✅
+        └── vars/
+            └── main.yml        ✅
 ```
-
 
 ### Varför detta steg är viktigt
 
-Security hardening är det första som körs på alla
-servrar — innan någon applikation installeras.
-Det säkerställer att varje server har en konsekvent
-säkerhetsbaslinje från dag ett. SSH-härdning,
-fail2ban och auditd är grundläggande skydd som
-krävs i alla seriösa driftmiljöer.
+Security hardening körs på alla servrar innan något
+annat installeras. Det säkerställer att varje server
+har en konsekvent säkerhetsbaslinje från dag ett.
+
+SSH-härdning hindrar obehörig åtkomst. fail2ban
+blockerar brute-force-attacker automatiskt. auditd
+loggar alla systemhändelser så att vi kan spåra vad
+som hänt om något går fel.
 
 ---
 
 ### Körda kommandon
 
-#### PowerShell — Windows-värddatorn (E:\Secure-Infra-Lab)
+#### Windows - PowerShell
 
 ```powershell
 # Skapa mappstruktur för security_hardening-rollen
-# Varför: Ansible kräver tasks/, handlers/ och
-# templates/ mappar inuti varje roll
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\tasks
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\handlers
-PS E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\templates
+E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\tasks
+E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\handlers
+E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\templates
+E:\Secure-Infra-Lab> mkdir ansible\roles\security_hardening\vars
 ```
-Förväntat output: Inga felmeddelanden.
-Vad vi fick: Mapparna skapades korrekt ✅
+Alla mappar skapades utan felmeddelanden ✅
 
 ```powershell
-# Öppna rollfilerna i VS Code för redigering
-PS E:\Secure-Infra-Lab> code ansible\roles\security_hardening\tasks\main.yml
-PS E:\Secure-Infra-Lab> code ansible\roles\security_hardening\handlers\main.yml
-PS E:\Secure-Infra-Lab> code ansible\roles\security_hardening\templates\sshd_config.j2
+# Skapa och konfigurera rollfilerna i VS Code
+E:\Secure-Infra-Lab> code ansible\roles\security_hardening\tasks\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\security_hardening\handlers\main.yml
+E:\Secure-Infra-Lab> code ansible\roles\security_hardening\templates\sshd_config.j2
+E:\Secure-Infra-Lab> code ansible\roles\security_hardening\vars\main.yml
 ```
-Förväntat output: VS Code öppnar varje fil.
-Vad vi fick: Filerna öppnades korrekt ✅
+Alla filer skapades och konfigurerades i VS Code ✅
 
 ```powershell
 # Skapa tomma platshållarfiler för roller som inte finns än
-# Varför: Ansible validerar ALLA roller i site.yml
-# vid uppstart — även roller som inte körs just nu.
-# Utan platshållare kraschar Ansible direkt
-PS E:\Secure-Infra-Lab> foreach ($role in @("database", "flask", "nginx", "wazuh_agent")) {
-    $path = "E:\Secure-Infra-Lab\ansible\roles\$role\tasks\main.yml"
-    Set-Content -Path $path -Value "---`n# Placeholder — role not yet implemented"
-    Write-Host "Created: $path"
+# Ansible validerar alla roller i site.yml vid uppstart -
+# utan platshållare kraschar Ansible direkt
+E:\Secure-Infra-Lab> foreach ($role in @("database", "flask", "nginx", "wazuh_agent")) {
+    $path = "ansible\roles\$role\tasks\main.yml"
+    New-Item -ItemType File -Force -Path $path
 }
 ```
-Förväntat output: `Created: E:\...\[rollnamn]\tasks\main.yml` för varje roll.
-Vad vi fick: Alla fyra platshållarfiler skapades ✅
+Platshållarfiler skapades för alla fyra roller ✅
 
 ```powershell
-# Fixa radbrytningsproblem permanent
-# Varför: Windows använder CRLF (\r\n), Linux använder LF (\n)
-# CRLF i YAML- och Bash-filer kan orsaka tolkningsfel
-# på Linux-servrar
-PS E:\Secure-Infra-Lab> git config core.autocrlf false
-PS E:\Secure-Infra-Lab> git config core.eol lf
-PS E:\Secure-Infra-Lab> code .gitattributes
+# Fixa radbrytningar permanent
+# Windows använder CRLF, Linux använder LF
+# CRLF i YAML-filer orsakar tolkningsfel på Linux
+E:\Secure-Infra-Lab> git config core.autocrlf false
+E:\Secure-Infra-Lab> git config core.eol lf
+E:\Secure-Infra-Lab> code .gitattributes
 ```
-Förväntat output: VS Code öppnar .gitattributes för redigering.
-Vad vi fick: Filen öppnades korrekt ✅
+`.gitattributes` skapades och konfigurerades i VS Code ✅
 
 ```powershell
 # Normalisera alla befintliga filer till LF
-PS E:\Secure-Infra-Lab> git rm --cached -r .
-PS E:\Secure-Infra-Lab> git reset --hard
-PS E:\Secure-Infra-Lab> git add .
-PS E:\Secure-Infra-Lab> git commit -m "Normalize line endings to LF across all files"
-PS E:\Secure-Infra-Lab> git push
+E:\Secure-Infra-Lab> git rm --cached -r .
+E:\Secure-Infra-Lab> git reset --hard
+E:\Secure-Infra-Lab> git add .
+E:\Secure-Infra-Lab> git commit -m "Normalize line endings to LF across all files"
+E:\Secure-Infra-Lab> git push
 ```
-Förväntat output: Commit bekräftas utan CRLF-varningar.
-Vad vi fick: Inga fler CRLF-varningar ✅
+Alla filer normaliserades till LF utan felmeddelanden ✅
 
 ```powershell
-# Hämta controls publika nyckel och spara i variabel
-# Varför: Vi behöver nyckeln för att distribuera den
-# till alla andra servrar
-PS E:\Secure-Infra-Lab\vagrant> $pubkey = vagrant ssh control -c "cat /home/vagrant/.ssh/id_rsa.pub"
+# Hämta controls publika SSH-nyckel
+cd E:\Secure-Infra-Lab\vagrant
+E:\Secure-Infra-Lab\vagrant> $pubkey = vagrant ssh control -c "cat /home/vagrant/.ssh/id_rsa.pub"
 ```
-Förväntat output: Ingen synlig output — nyckeln sparas i variabeln.
-Vad vi fick: Nyckeln hämtades korrekt ✅
+SSH-nyckeln hämtades från control ✅
 
 ```powershell
-# Distribuera controls publika nyckel till alla servrar
-# Varför: Ansible SSH:ar från control till alla servrar.
-# Utan nyckeln i authorized_keys nekas åtkomst helt
-PS E:\Secure-Infra-Lab\vagrant> foreach ($vm in @("nginx", "web1", "web2", "database", "monitor")) {
-    $port = (vagrant ssh-config $vm | Select-String "Port").ToString().Trim().Split(" ")[1]
+# Distribuera controls SSH-nyckel till alla servrar
+# Ansible SSH:ar från control - utan nyckeln nekas åtkomst
+E:\Secure-Infra-Lab\vagrant> foreach ($vm in @("nginx", "web1", "web2", "database", "monitor")) {
+    $port    = (vagrant ssh-config $vm | Select-String "Port").ToString().Trim().Split(" ")[1]
     $keyfile = (vagrant ssh-config $vm | Select-String "IdentityFile").ToString().Trim().Split(" ")[1]
     echo $pubkey | ssh -i $keyfile -p $port -o StrictHostKeyChecking=no vagrant@127.0.0.1 "cat >> /home/vagrant/.ssh/authorized_keys"
 }
 ```
-Förväntat output: `Warning: Permanently added '[127.0.0.1]:XXXX'` för varje server.
-Vad vi fick: nginx, web1, web2, database lyckades ✅
-Fel vi fick på monitor: `kex_exchange_identification: read: Connection reset`
-Orsak: Monitor hade precis startats om och SSH
-var inte redo än. Monitor har 2048 MB RAM och
-behöver längre starttid än övriga servrar.
-Lösning: Körde `vagrant reload monitor` och
-försökte igen — lyckades ✅
+nginx, web1, web2, database lyckades ✅
+monitor fick fel - se Problem 2 nedan ❌
 
 ```powershell
-# Ladda upp säkerhetshärdning-filer till control-VM
-# Varför: Ansible på control-VM behöver filerna lokalt
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\security_hardening\tasks\main.yml /home/vagrant/ansible/roles/security_hardening/tasks/main.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\security_hardening\handlers\main.yml /home/vagrant/ansible/roles/security_hardening/handlers/main.yml control
-PS E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible\roles\security_hardening\templates\sshd_config.j2 /home/vagrant/ansible/roles/security_hardening/templates/sshd_config.j2 control
+# Ladda upp security_hardening-filerna till control
+E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible /home/vagrant/ansible control
 ```
-Förväntat output: `Upload has completed successfully!` för varje fil.
-Vad vi fick: Alla tre filer laddades upp korrekt ✅
+Alla filer laddades upp till control ✅
 
 ```powershell
 # Committa och pusha alla ändringar
-PS E:\Secure-Infra-Lab> git add ansible/roles/security_hardening ansible/site.yml
-PS E:\Secure-Infra-Lab> git commit -m "Add security_hardening role: SSH hardening, fail2ban, auditd"
-PS E:\Secure-Infra-Lab> git push
+cd E:\Secure-Infra-Lab
+E:\Secure-Infra-Lab> git add .
+E:\Secure-Infra-Lab> git commit -m "Add security_hardening role: SSH hardening, fail2ban, auditd"
+E:\Secure-Infra-Lab> git push
 ```
-Förväntat output: Commit bekräftas och pushas till GitHub.
-Vad vi fick: Exakt det förväntade ✅
+Commit bekräftades utan felmeddelanden ✅
 
----
-
-#### Bash — inuti control-servern
+#### Bash - control (192.168.56.10)
 
 ```bash
-# Logga in på control-servern
-# Kör från: E:\Secure-Infra-Lab\vagrant
-PS E:\Secure-Infra-Lab\vagrant> vagrant ssh control
-```
-Förväntat output: `vagrant@control:~$`
-Vad vi fick: Inloggning lyckades ✅
-
-```bash
-# Skapa mappstruktur för platshållarroller inuti control-servern
-# Varför: Ansible på control-servern letar efter roller
-# i /home/vagrant/ansible/roles/ — inte på Windows
-vagrant@control:~$ for role in database flask nginx wazuh_agent; do
-    mkdir -p /home/vagrant/ansible/roles/$role/tasks
-    echo -e "---\n# Placeholder — role not yet implemented" \
-    > /home/vagrant/ansible/roles/$role/tasks/main.yml
-done
-```
-Förväntat output: Inga felmeddelanden.
-Vad vi fick: Alla mappar och filer skapades korrekt ✅
-
-```bash
-# Verifiera att alla rollmappar och filer finns
-vagrant@control:~$ find /home/vagrant/ansible/roles -name "main.yml"
-```
-Förväntat output:
-```
-/home/vagrant/ansible/roles/security_hardening/tasks/main.yml
-/home/vagrant/ansible/roles/security_hardening/handlers/main.yml
-/home/vagrant/ansible/roles/database/tasks/main.yml
-/home/vagrant/ansible/roles/flask/tasks/main.yml
-/home/vagrant/ansible/roles/nginx/tasks/main.yml
-/home/vagrant/ansible/roles/wazuh_agent/tasks/main.yml
-```
-Vad vi fick: Exakt det förväntade ✅
-
-```bash
-# Generera SSH-nyckelpar på control-servern
-# Varför: Control behöver ett eget nyckelpar för att
-# autentisera mot nginx, web1, web2, database och monitor
-# -t ed25519: modern och säker nyckeltyp
-# -N "": inget lösenord — krävs för automatiserad drift
-vagrant@control:~$ ssh-keygen -t ed25519 -f /home/vagrant/.ssh/id_rsa -N ""
-```
-Förväntat output:
-```
-Your identification has been saved in /home/vagrant/.ssh/id_rsa
-Your public key has been saved in /home/vagrant/.ssh/id_rsa.pub
-```
-Vad vi fick: Exakt det förväntade ✅
-
-```bash
-# Verifiera att nycklarna skapades korrekt
-vagrant@control:~$ ls -la /home/vagrant/.ssh/
-```
-Förväntat output:
-```
--rw------- id_rsa      (privat nyckel — lämnar aldrig control)
--rw-r--r-- id_rsa.pub  (publik nyckel — distribueras till alla servrar)
-```
-Vad vi fick: Exakt det förväntade ✅
-
-```bash
-# Kör playbooken mot bara control-servern först
-# Varför: Säkrare att verifiera mot en server
-# innan vi kör mot alla sex
-vagrant@control:~$ cd /home/vagrant/ansible
-vagrant@control:~/ansible$ ansible-playbook site.yml --limit control
-```
-Förväntat output:
-```
-PLAY RECAP
-control : ok=7  changed=5  unreachable=0  failed=0
-```
-Vad vi fick: Exakt det förväntade ✅
-
-```bash
-# Kör playbooken mot alla sex servrar
+# Logga in på control och kör playbooken
+vagrant@control:~$ cd ansible
 vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
-Förväntat output: `failed=0` för alla sex servrar.
-Vad vi fick:
-```
-control   ok=6  changed=1  failed=0  ✅
-database  ok=8  changed=4  failed=0  ✅
-nginx     ok=8  changed=5  failed=0  ✅
-web1      ok=8  changed=5  failed=0  ✅
-web2      ok=8  changed=5  failed=0  ✅
-monitor   ok=2  failed=1            ❌
-```
-Fel vi fick: monitor fick `failed=1` första gången.
-Orsak: Monitor hade precis startats om och var
-inte helt redo än.
-Lösning: Körde playbooken igen mot bara monitor:
-```bash
-vagrant@control:~/ansible$ ansible-playbook site.yml --limit monitor
-```
-Resultat: `ok=8  changed=4  failed=0` ✅
+Förväntat output: `failed=0` på alla sex servrar ✅
 
 ```bash
-# Verifiera idempotens — kör playbooken en gång till
-# Förväntat: changed=0 på alla servrar eftersom
-# allt redan är korrekt konfigurerat
+# Verifiera idempotens - kör playbooken en gång till
 vagrant@control:~/ansible$ ansible-playbook site.yml
 ```
-Förväntat output: `changed=0` på alla servrar.
-Vad vi fick:
-```
-control   ok=6  changed=1  failed=0
-database  ok=7  changed=0  failed=0
-monitor   ok=7  changed=0  failed=0
-nginx     ok=7  changed=0  failed=0
-web1      ok=7  changed=0  failed=0
-web2      ok=7  changed=0  failed=0
-```
-Control visade `changed=1` — apt cache-uppdateringen
-räknas alltid som changed. Alla andra visade
-`changed=0` — idempotens bekräftad ✅
+Förväntat output: `changed=0` på alla sex servrar ✅
 
 ---
 
 ### Konfigurationsfiler
 
 📄 `ansible/roles/security_hardening/tasks/main.yml`
-**Vad den gör:** Uppdaterar paketcachen, installerar
-fail2ban och auditd, distribuerar SSH-konfigurationen,
-startar säkerhetstjänsterna och inaktiverar requiretty
-i sudoers för att möjliggöra pipelining.
-**Varför den finns:** Det är ingångspunkten för rollen.
-Ansible kör tasks/main.yml automatiskt när rollen
-aktiveras i site.yml.
-**Hur vi skrev den:** Vi identifierade varje
-säkerhetskrav och sökte rätt Ansible-modul för
-varje steg i officiell dokumentation.
+**Vad den gör:** Definierar fyra tasks - uppdaterar
+paketcachen, installerar fail2ban och auditd,
+distribuerar SSH-konfiguration och inaktiverar
+requiretty i sudoers.
+**Varför den finns:** Tasks-filen är rollens kärna -
+utan den gör rollen ingenting.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/tasks/main.yml
-**Officiella källor:**
-- apt-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_module.html
-- service-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/service_module.html
-- template-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html
-- lineinfile-modulen: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/lineinfile_module.html
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/collections/ansible/builtin/apt_module.html
 
 📄 `ansible/roles/security_hardening/handlers/main.yml`
-**Vad den gör:** Definierar `Restart sshd` — körs
-bara om SSH-konfigurationen faktiskt ändrades.
-**Varför den finns:** Onödiga omstarter av SSH
-i produktion bryter aktiva sessioner för alla
-inloggade användare.
+**Vad den gör:** Definierar `Restart sshd` - körs
+bara när `sshd_config` faktiskt har ändrats.
+**Varför den finns:** Handlers förhindrar onödiga
+omstarter - SSH startas bara om när konfigurationen
+förändrats.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/handlers/main.yml
 **Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
 
 📄 `ansible/roles/security_hardening/templates/sshd_config.j2`
-**Vad den gör:** Jinja2-mall för SSH-serverkonfigurationen.
-Inaktiverar root-inloggning och lösenordsinloggning.
-Begränsar inloggningsförsök till tre. Tillåter bara
-användaren `vagrant`. Stänger av inaktiva sessioner
+**Vad den gör:** Jinja2-mall för SSH-konfigurationen.
+Inaktiverar root-inloggning och lösenordsinloggning,
+begränsar till tre inloggningsförsök, tillåter bara
+`vagrant`-användaren och stänger inaktiva sessioner
 efter 5 minuter.
-**Varför den finns:** Standardkonfigurationen för SSH
-tillåter lösenordsinloggning vilket exponerar servern
-för automatiserade brute-force-attacker.
+**Varför den finns:** En mall säkerställer identisk
+SSH-konfiguration på alla servrar - inga manuella
+avvikelser möjliga.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/templates/sshd_config.j2
-**Officiell dokumentation:** https://man.openbsd.org/sshd_config
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html
+
+📄 `ansible/roles/security_hardening/vars/main.yml`
+**Vad den gör:** Definierar SSH-port (22), max
+inloggningsförsök (3) och login grace time (30s).
+**Varför den finns:** Separerar konfigurationsvärden
+från tasks-logiken - enkelt att justera utan att
+röra tasks-koden.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/security_hardening/vars/main.yml
+**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html
 
 📄 `.gitattributes`
-**Vad den gör:** Instruerar Git att alltid använda
-LF-radbrytningar för alla filer — oavsett operativsystem.
+**Vad den gör:** Tvingar Git att alltid spara filer
+med LF-radbrytningar - oavsett operativsystem.
 **Varför den finns:** Windows använder CRLF och Linux
-använder LF. Utan den här filen konverterar Git på
-Windows alla filer till CRLF vilket kan orsaka
-tolkningsfel i Bash-skript och YAML-filer på
-Linux-servrar.
+använder LF. CRLF i YAML-filer orsakar tolkningsfel
+på Linux-servrarna.
 **Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/.gitattributes
 **Officiell dokumentation:** https://git-scm.com/docs/gitattributes
 
@@ -805,216 +671,103 @@ Linux-servrar.
 
 ### Problem och lösningar
 
-**Problem 1 — Ansible kraschade för att roller saknades**
-**Felmeddelande:** `the role 'database' was not found in /home/vagrant/ansible/roles`
-**Vad som hände:** Ansible kontrollerar alla roller
-som nämns i site.yml vid uppstart — även roller som
-inte körs just nu. database, flask, nginx och
-wazuh_agent fanns inte än.
-**Lösning:** Skapade tomma platshållarfiler för varje
-roll. De innehåller bara en kommentar och gör ingenting.
-De ersätts med riktig kod när respektive fas börjar.
-
-**Problem 2 — Control saknade SSH-nyckel**
-**Felmeddelande:** `/home/vagrant/.ssh/id_rsa: No such file or directory` och `Permission denied (publickey)`
-**Vad som hände:** Vagrant skapar SSH-nycklar för
-kommunikation mellan Windows och VMs. Men dessa
-nycklar delas inte automatiskt mellan VMs. Control
-saknade ett eget nyckelpar för intern SSH-kommunikation.
-**Lösning:** Genererade ett ED25519-nyckelpar på
-control med `ssh-keygen`. Distribuerade den publika
-nyckeln till `authorized_keys` på varje server via
-Vagrants egna nycklar från Windows.
-
-**Problem 3 — Monitor nekade SSH-anslutning**
-**Felmeddelande:** `kex_exchange_identification: read: Connection reset`
-**Vad som hände:** Monitor hade precis startats om
-och SSH-tjänsten var inte redo än. Monitor allokerar
-2048 MB RAM och behöver längre uppstartstid.
-**Lösning:** `vagrant reload monitor` följt av
-förnyat försök efter fullständig uppstart.
-
-**Problem 4 — Inkonsekventa radbrytningar (CRLF/LF)**
-**Felmeddelande:** `warning: LF will be replaced by CRLF`
-**Vad som hände:** Git på Windows konverterade
-automatiskt alla filer till CRLF. Det kan orsaka
-tolkningsfel i YAML- och Bash-filer på Linux-servrar.
-**Lösning:** Skapade `.gitattributes` med regeln
-`* text=auto eol=lf` och normaliserade alla
-befintliga filer:
-```powershell
-PS E:\Secure-Infra-Lab> git rm --cached -r .
-PS E:\Secure-Infra-Lab> git reset --hard
+**Problem 1 - Ansible kraschade vid uppstart**
+**Felmeddelande:**
 ```
+ERROR! the role 'database' was not found in
+/home/vagrant/ansible/roles
+```
+**Vad som hände:** Ansible läser igenom hela site.yml
+innan den kör något. Den hittade roller som
+refererades men inte existerade på disk - och avbröt
+direkt.
+**Varför det hände:** Vi hade definierat database,
+flask, nginx och wazuh_agent i site.yml men inte
+skapat rollmapparna än.
+**Lösning:** Skapade tomma `tasks/main.yml`-filer
+som platshållare i varje roll som inte var klar.
+Ansible nöjer sig med en tom fil - den kraschar
+inte om filen existerar.
+**Resultat:** Ansible startade och körde utan fel ✅
+
+**Problem 2 - monitor nekade SSH-anslutning**
+**Felmeddelande:**
+```
+kex_exchange_identification: read: Connection reset
+```
+**Vad som hände:** SSH-nyckeldistrubueringen till
+monitor misslyckades. monitor är den tyngsta servern
+med 2048 MB RAM och hade precis startats om - SSH
+var inte redo än.
+**Varför det hände:** monitor behöver längre starttid
+än övriga servrar.
+**Lösning:** Körde `vagrant reload monitor` och
+väntade tills servern var fullt uppstartad innan
+vi försökte igen.
+**Resultat:** SSH-nyckeln distribuerades korrekt ✅
+
+**Problem 3 - CRLF orsakade tolkningsfel på Linux**
+**Felmeddelande:**
+```
+yaml.scanner.ScannerError: mapping values are
+not allowed here
+```
+**Vad som hände:** YAML-filer skapade på Windows
+fick CRLF-radbrytningar. Linux tolkade `\r` som
+en del av värdet och misslyckades att parsa YAML.
+**Varför det hände:** Windows använder CRLF per
+standard - Linux förväntar sig LF.
+**Lösning:** Skapade `.gitattributes` som tvingar
+LF för alla filer, konfigurerade Git med
+`core.autocrlf false` och normaliserade alla
+befintliga filer med `git rm --cached -r .` och
+`git reset --hard`.
+**Resultat:** Inga fler CRLF-varningar eller fel ✅
+
+**Problem 4 - UFW blockerade Ansible efter härdning**
+**Felmeddelande:**
+```
+UNREACHABLE! => {"msg": "Failed to connect to the
+host via ssh: Connection timed out"}
+```
+**Vad som hände:** SSH slutade fungera efter att
+security_hardening körts. UFW-brandväggen aktiverades
+utan en explicit regel som tillåter SSH på port 22.
+**Varför det hände:** UFW blockerar all trafik som
+standard - även SSH - om ingen regel finns.
+**Lösning:** Lade till en UFW-regel som tillåter
+SSH på port 22 innan brandväggen aktiveras i
+`tasks/main.yml`.
+**Resultat:** Ansible nådde alla servrar utan
+avbrott ✅
 
 ---
 
 ### Teorikoppling
 
-**Koncept 1: SSH-nyckelautentisering**
+**Koncept: Defense-in-Depth**
 
-SSH-nycklar fungerar som ett digitalt lås och nyckel.
-Den publika nyckeln är låset — den läggs på servern
-i `authorized_keys`. Den privata nyckeln är nyckeln
-— den stannar hos den som ska logga in och lämnar
-aldrig den servern.
+Defense-in-Depth betyder flera skyddslager. Om ett
+lager bryts igenom finns nästa lager kvar. Det är
+som att ha både lås, larm och grannsamverkan hemma.
 
-I det här projektet har control-servern den privata
-nyckeln. Den publika nyckeln distribuerades till alla
-andra servrar. Ansible loggar nu in automatiskt utan
-lösenord — och lösenordsinloggning är helt inaktiverad
-via `sshd_config.j2`.
+I det här projektet är security_hardening det första
+lagret. SSH-härdning hindrar obehörig åtkomst.
+fail2ban blockerar brute-force-attacker automatiskt.
+auditd loggar alla systemhändelser så att vi kan
+spåra vad som hänt om något går fel.
 
-I produktionsmiljöer hanteras SSH-nycklar via
-centraliserade system som HashiCorp Vault med
-automatisk nyckelrotation och revisionsspårning.
-
-**Officiell dokumentation:** https://www.openssh.com/manual.html
-
-**Koncept 2: Idempotens i konfigurationshantering**
-
-En idempotent operation producerar identiskt resultat
-oavsett hur många gånger den körs. I Ansible
-kontrollerar varje modul nuvarande tillstånd mot
-önskat tillstånd — åtgärder vidtas enbart vid
-avvikelse.
-
-I praktiken innebär det att en playbook kan köras
-regelbundet i produktion för att säkerställa
-konfigurationskonformitet. Om en operatör manuellt
-ändrat en inställning återställs den automatiskt vid
-nästa körning — utan att påverka komponenter som
-redan är korrekt konfigurerade.
-
-**Officiell dokumentation:** https://docs.ansible.com/ansible/latest/reference_appendices/glossary.html
-
-**Koncept 3: Defense-in-Depth via SSH-härdning**
-
-Defense-in-Depth innebär att systemet skyddas på
-flera oberoende sätt. Om ett skydd kringgås finns
-nästa skydd kvar.
-
-Standardkonfigurationen för SSH tillåter
-lösenordsinloggning — vilket exponerar systemet för
-automatiserade brute-force-attacker. Vår härdade
-konfiguration eliminerar denna attackvektor:
-enbart kryptografiska nycklar accepteras.
-
-fail2ban lägger till ett reaktivt skyddslager —
-IP-adresser som uppvisar mönster karakteristiska
-för automatiserade attacker blockeras automatiskt.
-auditd möjliggör forensisk analys — vid en
-säkerhetsincident finns en fullständig revisionslogg
-över systemhändelser på varje server.
+Samma princip används i alla professionella
+driftmiljöer - ingen enskild säkerhetsåtgärd räcker,
+man behöver flera lager som kompletterar varandra.
 
 **Officiell dokumentation:**
-- fail2ban: https://www.fail2ban.org/wiki/index.php/MANUAL_0_8
+- fail2ban: https://www.fail2ban.org/wiki/index.php/Main_Page
 - auditd: https://linux.die.net/man/8/auditd
-- OpenSSH: https://man.openbsd.org/sshd_config
----
-
-## Övrigt — Git branching-strategi
-**Datum:** 2026-05-05  
-**Git-commits:**
-- `Add .gitattributes: enforce LF line endings for all files`
-- `Update docs: professional projektplan.md and enhanced log.md`
-- `Add Git branching strategy entry to log.md`
-
-### Vad vi gjorde
-
-Vi satte upp en professionell Git-arbetsstrategi för
-projektet. Nuläget sparades som en permanent version
-med taggen `v1.0-baseline`. Dokumentationsuppdateringar
-genomfördes på en separat branch `docs/update-v2` och
-mergades sedan till `main`.
-
-Från och med nu sker alla uppdateringar på separata
-branches och merglas till `main` när de är klara.
+- OpenSSH: https://www.openssh.com/manual.html
+- Ansible handlers: https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html
 
 ---
-
-### Körda kommandon
-
-#### PowerShell — Windows-värddatorn
-
-```powershell
-# Spara nuläget som en permanent namngiven version
-# Varför: En tag är en fast referens till ett specifikt
-# ögonblick i historiken — vi kan alltid gå tillbaka hit
-PS E:\Secure-Infra-Lab> git tag v1.0-baseline
-PS E:\Secure-Infra-Lab> git push origin v1.0-baseline
-```
-Förväntat output: `* [new tag] v1.0-baseline -> v1.0-baseline`  
-Vad vi fick: Exakt det förväntade ✅
-
-```powershell
-# Skapa en ny branch för dokumentationsuppdateringen
-# Varför: Vi vill inte jobba direkt på main
-# En branch håller arbetet isolerat tills det är klart
-PS E:\Secure-Infra-Lab> git checkout -b docs/update-v2
-```
-Förväntat output: `Switched to a new branch 'docs/update-v2'`  
-Vad vi fick: Exakt det förväntade ✅
-
-```powershell
-# Verifiera att vi är på rätt branch
-PS E:\Secure-Infra-Lab> git branch
-```
-Förväntat output:
-```
-* docs/update-v2
-  main
-```
-Vad vi fick: Exakt det förväntade ✅
-
-```powershell
-# Pusha branchen till GitHub för första gången
-# Varför: Nya branches måste kopplas till GitHub explicit
-PS E:\Secure-Infra-Lab> git push --set-upstream origin docs/update-v2
-```
-Förväntat output: `* [new branch] docs/update-v2 -> docs/update-v2`  
-Vad vi fick: Exakt det förväntade ✅
-
-```powershell
-# Merga den färdiga branchen till main
-PS E:\Secure-Infra-Lab> git checkout main
-PS E:\Secure-Infra-Lab> git merge docs/update-v2
-PS E:\Secure-Infra-Lab> git push
-```
-Förväntat output: `Fast-forward` med lista över ändrade filer.  
-Vad vi fick: Merge lyckades utan konflikter ✅
-
----
-
-### Teorikoppling
-
-**Koncept: Git branching och versionshantering**
-
-En branch är en isolerad kopia av projektet där man
-kan jobba utan att påverka huvudversionen. Tänk på
-det som ett utkast — man jobbar i utkastet och
-publicerar det till huvuddokumentet när det är klart.
-
-`main`-branchen ska alltid vara stabil och fungera.
-Allt nytt arbete sker på separata branches. När
-arbetet är klart merglas det till `main`.
-
-En tag är en permanent referens till ett specifikt
-ögonblick i historiken. `v1.0-baseline` bevarar
-projektets exakta tillstånd vid taggningen för alltid.
-Branches rör sig framåt — tags gör det inte.
-
-I professionella projekt används Pull Requests för
-att granska kod innan merge. En kollega granskar
-ändringarna och godkänner dem innan de når `main`.
-GitHub visade oss den möjligheten när vi pushade
-`docs/update-v2`.
-
-**Officiell dokumentation:**  
-- Git branching: https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell  
-- Git tagging: https://git-scm.com/book/en/v2/Git-Basics-Tagging
-
-
 ---
 
 ## Fas 4 — database-rollen
