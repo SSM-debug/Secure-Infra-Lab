@@ -262,13 +262,12 @@ Databasen har strikta brandväggsregler via UFW.
 Bara web1 och web2 får ansluta på port 5432.
 Alla andra anslutningar blockeras direkt.
 
-`pg_hba.conf` konfigureras med separata regler för
-web1 och web2 - bara dessa IP-adresser får autentisera
-mot databasen. `listen_addresses` är satt till `'*'`
-i nuvarande konfiguration, vilket är en känd avvägning
-som dokumenteras i rapporten. I en produktionsmiljö
-ska `listen_addresses` sättas till specifika
-IP-adresser för ett extra skyddslager.
+`pg_hba.conf` konfigureras med separata regler for
+web1 och web2 - bara dessa IP-adresser far autentisera
+mot databasen. `listen_addresses` ar satt till de
+specifika IP-adresserna for web1 och web2 - PostgreSQL
+lyssnar inte pa alla interfacer. Detta ger ett extra
+skyddslager utover UFW-reglerna.
 
 ### Skydd 3 - SSH-härdning på alla servrar
 
@@ -333,8 +332,11 @@ Dokumentation: https://flask.palletsprojects.com/
 ### nginx - körs på nginx-servern
 
 Konfigurerar nginx som lastbalanserare. Distribuerar
-en konfigurationsfil som skickar förfrågningar till
-web1 och web2 i turordning (round-robin).
+en konfigurationsfil som skickar forfrågningar till
+web1 och web2 i turordning (round-robin). Passive
+health checks med max_fails=2 och fail_timeout=30s
+ger automatisk failover om en server slutar svara.
+nginx kommunicerar med Flask over HTTPS.
 
 Dokumentation: https://nginx.org/en/docs/
 
