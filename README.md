@@ -82,9 +82,9 @@ automatiskt mellan web1 och web2 via round-robin.
 Flask-applikationen via Gunicorn. Båda servrarna
 kör identisk kod men identifierar sig som
 "Server 1" respektive "Server 2". nginx kommunicerar
-med Flask over HTTPS - trafiken mellan lastbalanseraren
-och webbservrarna ar krypterad med TLS. Om en server
-slutar svara tar den andra over automatiskt via
+med Flask över HTTPS - trafiken mellan lastbalanseraren
+och webbservrarna är krypterad med TLS. Om en server
+slutar svara tar den andra över automatiskt via
 passive health checks.
 
 **Lager 3 - database (.14)** kör PostgreSQL och
@@ -712,12 +712,12 @@ igenom finns nästa lager kvar.
 
 **Designnotering om listen_addresses:**
 
-PostgreSQL ar konfigurerad med `listen_addresses`
+PostgreSQL är konfigurerad med `listen_addresses`
 satt till web1 och web2 IP-adresser specifikt
 (`192.168.56.12,192.168.56.13`). Databasen lyssnar
-bara pa anslutningar fran dessa tva servrar - inte
-pa alla interfacer. Detta ger ett extra skyddslager
-utover pg_hba.conf och UFW - Defense-in-Depth.
+bara på anslutningar från dessa två servrar - inte
+på alla interface. Detta ger ett extra skyddslager
+utöver pg_hba.conf och UFW - Defense-in-Depth.
 
 > Fullständig säkerhetsanalys finns i
 > [docs/projektplan.md - Avsnitt 7](docs/projektplan.md).
@@ -762,37 +762,37 @@ Wazuh detekterar:
 
 ### CAP-teorem och distribuerade system
 
-CAP-teoremet sager att ett distribuerat system
-bara kan garantera tva av tre egenskaper samtidigt:
+CAP-teoremet säger att ett distribuerat system
+bara kan garantera två av tre egenskaper samtidigt:
 
 - **C**onsistency - alla noder ser samma data
 - **A**vailability - systemet svarar alltid
-- **P**artition tolerance - systemet overlever natverksfel
+- **P**artition tolerance - systemet överlever nätverksfel
 
 I detta projekt prioriterar vi **Availability** och
 **Partition tolerance** (AP-system):
 
 - Om web1 går ner fortsätter web2 svara - tillgänglighet
-  prioriteras over konsistens
-- Sessionsdata går forlorad vid failover - vi har ingen
+  prioriteras över konsistens
+- Sessionsdata går förlorad vid failover - vi har ingen
   delad session-store mellan web1 och web2
-- PostgreSQL ar en Single Point of Failure (SPoF) -
+- PostgreSQL är en Single Point of Failure (SPoF) -
   om databasen går ner slutar /visit fungera
 
-I produktion atgardas detta med PostgreSQL-replikering
-(primary/replica) eller en managed database-tjanst
+I produktion åtgärdas detta med PostgreSQL-replikering
+(primary/replica) eller en managed database-tjänst
 som AWS RDS med Multi-AZ.
 
 ### SPoF-analys
 
-| Komponent | SPoF? | Konsekvens | Losning i produktion |
+| Komponent | SPoF? | Konsekvens | Lösning i produktion |
 |-----------|-------|------------|---------------------|
-| nginx | Ja | Hela systemet nar inte | Keepalived/VRRP |
-| web1 | Nej | web2 tar over automatiskt | Passive health checks |
-| web2 | Nej | web1 tar over automatiskt | Passive health checks |
+| nginx | Ja | Hela systemet når inte | Keepalived/VRRP |
+| web1 | Nej | web2 tar över automatiskt | Passive health checks |
+| web2 | Nej | web1 tar över automatiskt | Passive health checks |
 | database | Ja | /visit slutar fungera | PostgreSQL replikering |
-| monitor | Nej | Overvakning faller bort | Redundant SIEM |
-| control | Nej | Ansible kors inte | Ny control-VM |
+| monitor | Nej | Övervakning faller bort | Redundant SIEM |
+| control | Nej | Ansible körs inte | Ny control-VM |
 
 ### STRIDE-tabell
 
@@ -810,15 +810,15 @@ som AWS RDS med Multi-AZ.
 
 ### Kvarvarande brister
 
-**Brist 1 - nginx ar Single Point of Failure**
+**Brist 1 - nginx är Single Point of Failure**
 
-Om nginx-servern kraschar ar hela systemet otillgangligt
-fran omvarlden. Ingen redundans finns pa lastbalanserarniva.
+Om nginx-servern kraschar är hela systemet otillgängligt
+från omvärlden. Ingen redundans finns på lastbalanseringsnivå.
 
 Accepterat i laboratoriet. I produktion: Keepalived/VRRP
-for automatisk failover till en standby-nginx.
+för automatisk failover till en standby-nginx.
 
-**Brist 2 - database ar Single Point of Failure**
+**Brist 2 - database är Single Point of Failure**
 
 Ingen PostgreSQL-replikering finns. Om database-servern
 kraschar slutar /visit fungera - ingen data kan sparas
@@ -827,13 +827,13 @@ eller lasas.
 Accepterat i laboratoriet. I produktion: PostgreSQL
 primary/replica-uppsattning eller AWS RDS Multi-AZ.
 
-**Brist 3 - secrets.yml i klartext pa disk**
+**Brist 3 - secrets.yml i klartext på disk**
 
-Databasuppgifter lagras okrypterat i secrets.yml pa
-control-VM. Filen gitignoreras men ar lasbar pa disk.
+Databasuppgifter lagras okrypterat i secrets.yml på
+control-VM. Filen gitignoreras men är läsbar på disk.
 
 Accepterat i laboratoriet. I produktion: HashiCorp Vault
-eller AWS Secrets Manager for hantering av hemligheter.
+eller AWS Secrets Manager för hantering av hemligheter.
 
 **Brist 4 - Ingen CI/CD-pipeline**
 
@@ -842,17 +842,17 @@ destroy && up. Ingen automatisk verifiering vid
 varje commit till GitHub.
 
 Accepterat i laboratoriet. I produktion: GitHub Actions
-som kor vagrant destroy && up && ansible-playbook
+som kör vagrant destroy && up && ansible-playbook
 automatiskt vid varje push till main.
 
-**Brist 5 - Sjalvsignerat TLS-certifikat**
+**Brist 5 - Självsignerat TLS-certifikat**
 
 nginx accepterar Flask-certifikatet utan verifiering
 (proxy_ssl_verify off). Krypteringen fungerar men
 certifikatets identitet verifieras inte.
 
 Accepterat i laboratoriet eftersom certifikatet
-genereras av Ansible och bada parter ar kanda.
+genereras av Ansible och båda parter är kända.
 I produktion: CA-signerat certifikat eller internt CA.
 
 ---
@@ -964,7 +964,7 @@ reproducerbar.
 | Statiska privata IP:er | DNS + cloud load balancers |
 | secrets.yml | HashiCorp Vault eller AWS Secrets Manager |
 | Cockpit för övervakning | Wazuh Dashboard (OpenSearch) + SOC-team |
-| TLS internt (nginx-Flask, sjalvsignerat) | TLS med CA-signerat certifikat |
+| TLS internt (nginx-Flask, självsignerat) | TLS med CA-signerat certifikat |
 | Manuell vagrant upload | CI/CD-pipeline med GitHub Actions |
 
 ### Skalbarhet i nuvarande design
