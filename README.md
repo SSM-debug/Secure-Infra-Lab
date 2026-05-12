@@ -475,11 +475,6 @@ E:\Secure-Infra-Lab\vagrant> vagrant up
 
 Förväntat output per server: `=== [servername]: ready ===`
 
-```powershell
-# Upload Ansible files to control
-E:\Secure-Infra-Lab\vagrant> vagrant upload ..\ansible /home/vagrant/ansible control
-E:\Secure-Infra-Lab\vagrant> vagrant upload ..\scripts\verify.sh /home/vagrant/verify.sh control
-```
 
 ```powershell
 # Log in to control and run the playbook
@@ -943,7 +938,6 @@ Dessa resultat ska uppnås varje gång efter:
 
 ```bash
 vagrant destroy -f && vagrant up
-vagrant upload ../ansible /home/vagrant/ansible control
 ansible-playbook site.yml
 bash verify.sh
 ```
