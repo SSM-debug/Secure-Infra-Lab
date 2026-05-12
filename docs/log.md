@@ -2423,3 +2423,92 @@ når produktion.
 
 ---
 ---
+
+## Fas 9 - Forbattringar: failover, TLS, Active Response och listen_addresses
+**Datum:** 2026-05-12
+**Git-commits:**
+- `feat(nginx): add passive health checks and automatic failover`
+- `feat(database): restrict listen_addresses to web1 and web2 only`
+- `feat(wazuh): add active response to block SSH brute force attacks`
+- `feat(tls): encrypt traffic between nginx and Flask with self-signed certificates`
+- `docs(readme): update architecture description and remove implemented improvements`
+- `docs(projektplan): update database and nginx descriptions with implemented improvements`
+
+### Vad vi gjorde
+
+Vi implementerade fyra sakerhetsforstarkningar pa en
+ny branch (feature/improvements) och uppdaterade
+dokumentationen.
+
+**Forbattring 1 - Automatisk failover i nginx**
+Lade till passive health checks i nginx upstream-blocket.
+Om en webbserver misslyckas tva ganger inom 30 sekunder
+markeras den som nere och nginx slutar skicka trafik dit.
+proxy_next_upstream hanterar automatisk omsandning vid fel.
+
+**Forbattring 2 - listen_addresses pa databasen**
+PostgreSQL lyssnar nu bara pa web1 och web2 IP-adresser
+istallet for alla interfacer ('*'). Ger ett extra
+skyddslager utover UFW-reglerna - Defense-in-Depth.
+
+**Forbattring 3 - Wazuh Active Response**
+Skapade ossec.conf.j2 med ett active-response-block.
+Regel 5763 triggar firewall-drop vid upprepade
+SSH-misslyckanden. IP-adressen blockeras i 300 sekunder.
+
+**Forbattring 4 - TLS mellan nginx och Flask**
+Ansible genererar nu ett sjalvsignerat TLS-certifikat
+pa web1 och web2 via openssl. Gunicorn serverar Flask
+over HTTPS pa port 5000. nginx anvander proxy_ssl_verify
+off eftersom certifikatet ar sjalvsignerat i labbmiljon.
+
+### Kommandon vi korde
+
+```bash
+git checkout main
+git merge review/documentation-update
+git push origin main
+git checkout -b feature/improvements
+```
+
+Sedan for varje forbattring:
+
+```bash
+# Redigerade filer i VS Code
+code ansible/roles/nginx/templates/nginx.conf.j2
+code ansible/roles/database/tasks/main.yml
+code ansible/roles/wazuh_manager/templates/ossec.conf.j2
+code ansible/roles/wazuh_manager/tasks/main.yml
+code ansible/roles/flask/tasks/main.yml
+code ansible/roles/flask/templates/flask.service.j2
+```
+
+```bash
+git add .
+git commit -m "[commit-meddelande]"
+git push origin feature/improvements
+```
+
+### Teorikoppling
+
+**Koncept: Defense-in-Depth**
+Defense-in-Depth betyder flera skyddslager. Om ett
+lager bryts igenom finns nasta lager kvar.
+
+I det har projektet:
+- UFW blockerar obehörig trafik pa natverksniva
+- listen_addresses begransar vilka interfacer PostgreSQL lyssnar pa
+- pg_hba.conf kontrollerar vilka IP-adresser som far autentisera
+- TLS krypterar trafiken mellan nginx och Flask
+- Wazuh Active Response blockerar angripare automatiskt
+
+I produktion kompletteras detta med nätverkssegmentering,
+IDS/IPS och SOC-overvakning.
+
+**Officiell dokumentation:**
+- nginx upstream: https://nginx.org/en/docs/http/ngx_http_upstream_module.html
+- Wazuh Active Response: https://documentation.wazuh.com/current/user-manual/capabilities/active-response/
+- openssl: https://www.openssl.org/docs/
+
+---
+---
