@@ -33,11 +33,25 @@ Vagrant.configure("2") do |config|
 
     control.vm.provision "shell", inline: <<-SHELL
       apt-get update -y
-      apt-get install -y python3-pip git
+
+      # Install pip, git and sshpass (sshpass needed for SSH key distribution)
+      apt-get install -y python3-pip git sshpass
+
+      # Install latest Ansible via pip (Ubuntu apt has outdated 2.10)
       pip3 install ansible
+
+      # Generate SSH keypair for Ansible to reach other VMs
+      sudo -u vagrant ssh-keygen -t rsa -b 2048 \
+        -f /home/vagrant/.ssh/id_rsa -N ""
+
+      # Copy ansible files to local directory with correct permissions
+      # synced_folder is world-writable - Ansible ignores ansible.cfg from such dirs
+      cp -r /home/vagrant/ansible /home/vagrant/ansible_local
+      chmod 700 /home/vagrant/ansible_local
+      chown -R vagrant:vagrant /home/vagrant/ansible_local
+
       echo "=== control: ready ==="
     SHELL
-  end
 
   # ─── nginx (.11) ─────────────────────────────────────────
   # Load balancer — only VM reachable from host (port 8080)
@@ -128,6 +142,23 @@ Vagrant.configure("2") do |config|
     monitor.vm.provision "shell", inline: <<-SHELL
       apt-get update -y
       echo "=== monitor: ready ==="
+    SHELL
+  end
+
+end
+
+# ─── Distribute SSH public key to all VMs ────────────────
+  # Run manually after vagrant up: vagrant provision control --provision-with ssh_keys
+  # This copies control's public key to all other VMs so Ansible can connect
+  config.vm.define "control" do |control|
+    control.vm.provision "ssh_keys", type: "shell", run: "never", inline: <<-SHELL
+      for ip in 192.168.56.11 192.168.56.12 192.168.56.13 192.168.56.14 192.168.56.15; do
+        sudo -u vagrant sshpass -p vagrant ssh-copy-id \
+          -o StrictHostKeyChecking=no \
+          -i /home/vagrant/.ssh/id_rsa.pub \
+          vagrant@$ip
+      done
+      echo "=== SSH keys distributed ==="
     SHELL
   end
 
