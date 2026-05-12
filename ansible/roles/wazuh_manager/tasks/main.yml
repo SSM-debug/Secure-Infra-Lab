@@ -1,5 +1,5 @@
 ---
-# Add Wazuh GPG key and repository
+# --- Add Wazuh GPG key ---------------------------------------------------
 - name: Add Wazuh GPG key
   shell: >
     curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH |
@@ -10,6 +10,7 @@
   args:
     creates: /usr/share/keyrings/wazuh.gpg
 
+# --- Add Wazuh apt repository --------------------------------------------
 - name: Add Wazuh repository
   shell: >
     echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg]
@@ -18,14 +19,25 @@
   args:
     creates: /etc/apt/sources.list.d/wazuh.list
 
-# Install Wazuh manager
+# --- Install Wazuh manager -----------------------------------------------
 - name: Install Wazuh manager
   apt:
     name: wazuh-manager
     state: present
     update_cache: yes
 
-# Start Wazuh manager
+# --- Deploy ossec.conf with active response enabled ----------------------
+# Deploys configuration that blocks IPs after repeated SSH failures
+- name: Deploy Wazuh manager configuration
+  template:
+    src: ossec.conf.j2
+    dest: /var/ossec/etc/ossec.conf
+    owner: root
+    group: ossec
+    mode: '0640'
+  notify: Restart wazuh-manager
+
+# --- Enable and start Wazuh manager --------------------------------------
 - name: Enable and start Wazuh manager
   service:
     name: wazuh-manager

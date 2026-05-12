@@ -1,0 +1,60 @@
+<!-- Managed by Ansible - do not edit manually -->
+<ossec_config>
+
+  <!-- Global settings -->
+  <!-- jsonout_output: write alerts in JSON format for easier parsing -->
+  <!-- alerts_log: write alerts to /var/ossec/logs/alerts/alerts.log -->
+  <!-- logall: do not log every event, only alerts -->
+  <global>
+    <jsonout_output>yes</jsonout_output>
+    <alerts_log>yes</alerts_log>
+    <logall>no</logall>
+  </global>
+
+  <!-- Agent registration service -->
+  <!-- Agents register themselves on port 1515 to get a key -->
+  <auth>
+    <port>1515</port>
+  </auth>
+
+  <!-- Remote agent communication -->
+  <!-- Agents send events to the manager on port 1514 over TCP -->
+  <remote>
+    <connection>secure</connection>
+    <port>1514</port>
+    <protocol>tcp</protocol>
+  </remote>
+
+  <!-- Active Response: automatically block brute force attackers -->
+  <!-- firewall-drop: runs a script that adds a firewall block rule on the agent -->
+  <!-- location local: the block runs on the agent where the event was detected -->
+  <!-- rules_id 5763: triggers on multiple failed SSH authentication attempts -->
+  <!-- timeout 300: the IP stays blocked for 300 seconds (5 minutes) -->
+  <active-response>
+    <command>firewall-drop</command>
+    <location>local</location>
+    <rules_id>5763</rules_id>
+    <timeout>300</timeout>
+  </active-response>
+
+  <!-- Default ruleset -->
+  <!-- rule_exclude: skip noisy policy rules that are not relevant here -->
+  <!-- list: CDB lists used by rules for lookups -->
+  <ruleset>
+    <decoder_dir>ruleset/decoders</decoder_dir>
+    <rule_dir>ruleset/rules</rule_dir>
+    <rule_exclude>0215-policy_rules.xml</rule_exclude>
+    <list>etc/lists/audit-keys</list>
+    <list>etc/lists/amazon/aws-eventnames</list>
+    <list>etc/lists/security-eventchannel</list>
+  </ruleset>
+
+  <!-- Log analysis -->
+  <!-- Monitor the authentication log on all agents -->
+  <!-- auth.log contains SSH login attempts, sudo usage, and PAM events -->
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/auth.log</location>
+  </localfile>
+
+</ossec_config>
