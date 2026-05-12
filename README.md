@@ -81,8 +81,11 @@ automatiskt mellan web1 och web2 via round-robin.
 **Lager 2 - web1 (.12) och web2 (.13)** kör
 Flask-applikationen via Gunicorn. Båda servrarna
 kör identisk kod men identifierar sig som
-"Server 1" respektive "Server 2". Om en server
-slutar svara tar den andra över automatiskt.
+"Server 1" respektive "Server 2". nginx kommunicerar
+med Flask over HTTPS - trafiken mellan lastbalanseraren
+och webbservrarna ar krypterad med TLS. Om en server
+slutar svara tar den andra over automatiskt via
+passive health checks.
 
 **Lager 3 - database (.14)** kör PostgreSQL och
 är helt isolerad från omvärlden. Bara web1 och
@@ -847,7 +850,7 @@ reproducerbar.
 | Statiska privata IP:er | DNS + cloud load balancers |
 | secrets.yml | HashiCorp Vault eller AWS Secrets Manager |
 | Cockpit för övervakning | Wazuh Dashboard (OpenSearch) + SOC-team |
-| HTTP internt | TLS på all kommunikation |
+| TLS internt (nginx-Flask, sjalvsignerat) | TLS med CA-signerat certifikat |
 | Manuell vagrant upload | CI/CD-pipeline med GitHub Actions |
 
 ### Skalbarhet i nuvarande design
@@ -980,33 +983,12 @@ Dashboards för fullständig SIEM-visualisering.
 Aktivera fullständig SIEM-visualisering när
 hårdvaran tillåter. Kräver minst 8 GB RAM på hosten.
 
-**2. Wazuh Active Response**
-Konfigurera automatisk IP-blockering vid
-brute-force-attacker. Wazuh-infrastrukturen
-finns redan på plats - det är en
-konfigurationsändring i ossec.conf.
-
-**3. TLS mellan nginx och Flask**
-Kryptera intern trafik med ett internt
-CA-certifikat eller WireGuard overlay-nätverk.
-
-**4. Automatisk failover**
-Health checks i nginx med automatisk
-bortkoppling av en server som inte svarar.
-Konfigureras med `max_fails` och `fail_timeout`
-i upstream-blocket i nginx.conf.
-
-**5. listen_addresses på databasen**
-Byt från `'*'` till specifika IP-adresser för
-ett extra skyddslager. Redan dokumenterat som
-känd avvägning i projektet.
-
-**6. Secrets management**
+**2. Secrets management**
 Ersätt secrets.yml med HashiCorp Vault för
 hantering av databasuppgifter och SSH-nycklar
 i produktionsmiljö.
 
-**7. CI/CD-pipeline**
+**3. CI/CD-pipeline**
 Automatisera `vagrant destroy && vagrant up &&
 ansible-playbook` med GitHub Actions för att
 verifiera reproducerbarhet vid varje commit.
