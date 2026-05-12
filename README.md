@@ -111,189 +111,257 @@ att spara som bild.
 <summary>Visa draw.io XML</summary>
 
 ```xml
-<mxfile host="diagrams.net">
-  <diagram name="Secure-Infra-Lab">
-    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10"
-      guides="1" tooltips="1" connect="1" arrows="1"
-      fold="1" page="1" pageScale="1" pageWidth="1169"
-      pageHeight="827" math="0" shadow="0">
+
+<mxfile host="app.diagrams.net">
+  <diagram name="Secure-Infra-Lab" id="0">
+    <mxGraphModel dx="1885" dy="1084" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1700" pageHeight="1200" math="0" shadow="0">
       <root>
-        <mxCell id="0"/>
-        <mxCell id="1" parent="0"/>
-
-        <!-- Windows Host -->
-        <mxCell id="2" value="Windows 11 (host)"
-          style="rounded=1;whiteSpace=wrap;html=1;
-          fillColor=#dae8fc;strokeColor=#6c8ebf;
-          fontStyle=1;fontSize=12;"
-          vertex="1" parent="1">
-          <mxGeometry x="400" y="40" width="200"
-            height="50" as="geometry"/>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="host" parent="1" style="rounded=1;whiteSpace=wrap;html=1;           fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;           fontSize=12;align=center;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;Windows 11 (host)&lt;/b&gt;&lt;/font&gt;&lt;br&gt;:8080 nginx  |  :9090 Cockpit" vertex="1">
+          <mxGeometry height="70" width="249" x="615" y="40" as="geometry" />
         </mxCell>
-
-        <!-- Private Network Box -->
-        <mxCell id="3" value="Private network 192.168.56.0/24"
-          style="rounded=1;whiteSpace=wrap;html=1;
-          fillColor=#f5f5f5;strokeColor=#666666;
-          fontStyle=1;fontSize=11;verticalAlign=top;"
-          vertex="1" parent="1">
-          <mxGeometry x="100" y="140" width="800"
-            height="600" as="geometry"/>
+        <mxCell id="net" parent="1" style="rounded=1;whiteSpace=wrap;html=1;           fillColor=none;strokeColor=#aaaaaa;strokeWidth=2;           dashed=1;fontSize=13;           verticalAlign=top;spacingTop=12;           fontColor=#666666;" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;&lt;b&gt;Private network — 192.168.56.0/24&lt;/b&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="760" width="1460" x="100" y="160" as="geometry" />
         </mxCell>
-
-        <!-- control -->
-        <mxCell id="4" value="control (.10)&#xa;Ansible control node&#xa;1024 MB"
-          style="rounded=1;whiteSpace=wrap;html=1;
-          fillColor=#00BCD4;strokeColor=#006EAF;
-          fontColor=#ffffff;fontStyle=1;"
-          vertex="1" parent="1">
-          <mxGeometry x="380" y="180" width="240"
-            height="70" as="geometry"/>
+        <mxCell id="control" parent="1" style="rounded=1;whiteSpace=wrap;html=1;           fillColor=#006EAF;strokeColor=#004d80;strokeWidth=2;           fontColor=#ffffff;fontSize=12;align=center;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;control (.10)&lt;/b&gt;&lt;/font&gt;&lt;br&gt;Ansible control node&lt;br&gt;192.168.56.10 | 1024 MB" vertex="1">
+          <mxGeometry height="80" width="220" x="630" y="230" as="geometry" />
         </mxCell>
-
-        <!-- nginx -->
-        <mxCell id="5" value="nginx (.11)&#xa;Load Balancer&#xa;Port 8080 | 512 MB"
-          style="rounded=1;whiteSpace=wrap;html=1;
-          fillColor=#00BCD4;strokeColor=#006EAF;
-          fontColor=#ffffff;fontStyle=1;"
-          vertex="1" parent="1">
-          <mxGeometry x="380" y="310" width="240"
-            height="70" as="geometry"/>
+        <mxCell id="nginx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;           fillColor=#00897B;strokeColor=#004D40;strokeWidth=2;           fontColor=#ffffff;fontSize=12;align=center;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;nginx (.11)&lt;/b&gt;&lt;/font&gt;&lt;br&gt;Load balancer&lt;br&gt;192.168.56.11 | Port 8080 | 512 MB" vertex="1">
+          <mxGeometry height="80" width="220" x="630" y="420" as="geometry" />
         </mxCell>
-
-        <!-- web1 -->
-        <mxCell id="6" value="web1 (.12)&#xa;Flask + Gunicorn&#xa;Server 1 | 512 MB"
-          style="rounded=1;whiteSpace=wrap;html=1;
-          fillColor=#00BCD4;strokeColor=#006EAF;
-          fontColor=#ffffff;fontStyle=1;"
-          vertex="1" parent="1">
-          <mxGeometry x="200" y="440" width="200"
-            height="70" as="geometry"/>
+        <mxCell id="web1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;           fillColor=#00BCD4;strokeColor=#006EAF;strokeWidth=2;           fontColor=#ffffff;fontSize=12;align=center;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;web1 (.12)&lt;/b&gt;&lt;/font&gt;&lt;br&gt;Flask + Gunicorn | Server 1&lt;br&gt;192.168.56.12 | 512 MB" vertex="1">
+          <mxGeometry height="80" width="220" x="200" y="610" as="geometry" />
         </mxCell>
-
-        <!-- web2 -->
-        <mxCell id="7" value="web2 (.13)&#xa;Flask + Gunicorn&#xa;Server 2 | 512 MB"
-          style="rounded=1;whiteSpace=wrap;html=1;
-          fillColor=#00BCD4;strokeColor=#006EAF;
-          fontColor=#ffffff;fontStyle=1;"
-          vertex="1" parent="1">
-          <mxGeometry x="600" y="440" width="200"
-            height="70" as="geometry"/>
+        <mxCell id="web2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;           fillColor=#00BCD4;strokeColor=#006EAF;strokeWidth=2;           fontColor=#ffffff;fontSize=12;align=center;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;web2 (.13)&lt;/b&gt;&lt;/font&gt;&lt;br&gt;Flask + Gunicorn | Server 2&lt;br&gt;192.168.56.13 | 512 MB" vertex="1">
+          <mxGeometry height="80" width="220" x="1060" y="610" as="geometry" />
         </mxCell>
-
-        <!-- database -->
-        <mxCell id="8" value="database (.14)&#xa;PostgreSQL | 512 MB&#xa;UFW: port 5432"
-          style="rounded=1;whiteSpace=wrap;html=1;
-          fillColor=#00BCD4;strokeColor=#006EAF;
-          fontColor=#ffffff;fontStyle=1;"
-          vertex="1" parent="1">
-          <mxGeometry x="380" y="570" width="240"
-            height="70" as="geometry"/>
+        <mxCell id="database" parent="1" style="rounded=1;whiteSpace=wrap;html=1;           fillColor=#00BCD4;strokeColor=#006EAF;strokeWidth=2;           fontColor=#ffffff;fontSize=12;align=center;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;database (.14)&lt;/b&gt;&lt;/font&gt;&lt;br&gt;PostgreSQL + UFW&lt;br&gt;192.168.56.14 | 512 MB" vertex="1">
+          <mxGeometry height="80" width="220" x="630" y="800" as="geometry" />
         </mxCell>
-
-        <!-- monitor -->
-        <mxCell id="9" value="monitor (.15)&#xa;Wazuh Manager + Cockpit&#xa;Port 9090 | 2048 MB"
-          style="rounded=1;whiteSpace=wrap;html=1;
-          fillColor=#00BCD4;strokeColor=#006EAF;
-          fontColor=#ffffff;fontStyle=1;"
-          vertex="1" parent="1">
-          <mxGeometry x="700" y="570" width="160"
-            height="70" as="geometry"/>
+        <mxCell id="monitor" parent="1" style="rounded=1;whiteSpace=wrap;html=1;           fillColor=#4527A0;strokeColor=#1A0073;strokeWidth=2;           fontColor=#ffffff;fontSize=12;align=center;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;&lt;b&gt;monitor (.15)&lt;/b&gt;&lt;/font&gt;&lt;br&gt;Wazuh Manager + Cockpit&lt;br&gt;192.168.56.15 | Port 9090 | 2048 MB" vertex="1">
+          <mxGeometry height="80" width="220" x="1060" y="800" as="geometry" />
         </mxCell>
-
-        <!-- Port forwarding nginx -->
-        <mxCell id="10" value=":8080"
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;orthogonalLoop=1;"
-          edge="1" source="2" target="5" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="p_host_nginx" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#6c8ebf;strokeWidth=2.5;           fontStyle=1;fontSize=12;           exitX=0.5;           entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#FF870F;" value=":8080">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="742" y="314" as="sourcePoint" />
+            <mxPoint x="742.0666666666666" y="417" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-
-        <!-- Port forwarding Cockpit -->
-        <mxCell id="11" value=":9090"
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;orthogonalLoop=1;dashed=1;"
-          edge="1" source="2" target="9" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="p_host_mon" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#6c8ebf;strokeWidth=2;           dashed=1;fontStyle=1;fontSize=12;           exitX=1;exitY=0.5;exitDx=0;exitDy=0;           entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#FF9EA7;dashed=1;" value=":9090">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1503" y="75" />
+              <mxPoint x="1503" y="750" />
+              <mxPoint x="1183" y="750" />
+            </Array>
+            <mxPoint x="863" y="75" as="sourcePoint" />
+            <mxPoint x="1183.066666666667" y="800" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-
-        <!-- Ansible SSH -->
-        <mxCell id="12" value="SSH (Ansible)"
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;dashed=1;"
-          edge="1" source="4" target="5" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="p_host_ctrl" edge="1" parent="1" source="host" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#6c8ebf;strokeWidth=2.5;           exitX=0.5;exitY=1;exitDx=0;exitDy=0;           entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#FF9A16;" target="control" value="">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <!-- Round-robin web1 -->
-        <mxCell id="13" value="round-robin"
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;"
-          edge="1" source="5" target="6" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="ssh_web1" edge="1" parent="1" source="control" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#9E9E9E;strokeWidth=1.5;           dashed=1;fontStyle=0;fontSize=11;           exitX=0;exitY=0.5;exitDx=0;exitDy=0;           entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#57FF44;dashed=1;" target="web1" value="SSH">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="270" />
+              <mxPoint x="310" y="270" />
+              <mxPoint x="310" y="610" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-
-        <!-- Round-robin web2 -->
-        <mxCell id="14" value="round-robin"
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;"
-          edge="1" source="5" target="7" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="ssh_web2" edge="1" parent="1" source="control" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#9E9E9E;strokeWidth=1.5;           dashed=1;fontStyle=0;fontSize=11;           exitX=1;exitY=0.5;exitDx=0;exitDy=0;           entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#58FF4C;dashed=1;" target="web2" value="SSH">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="980" y="270" />
+              <mxPoint x="1170" y="270" />
+              <mxPoint x="1170" y="610" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-
-        <!-- web1 to database -->
-        <mxCell id="15" value="port 5432"
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;"
-          edge="1" source="6" target="8" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="ssh_db" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#9E9E9E;strokeWidth=1.5;           dashed=1;fontStyle=0;fontSize=11;           exitX=0;exitY=1;exitDx=0;exitDy=0;           entryX=0;entryY=0;entryDx=0;entryDy=0;strokeColor=#6AFF44;dashed=1;" value="SSH">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="545" y="381" />
+              <mxPoint x="545" y="801" />
+            </Array>
+            <mxPoint x="725.0666666666666" y="311" as="sourcePoint" />
+            <mxPoint x="615" y="801.0666666666666" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-
-        <!-- web2 to database -->
-        <mxCell id="16" value="port 5432"
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;"
-          edge="1" source="7" target="8" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="ssh_mon" edge="1" parent="1" source="control" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#9E9E9E;strokeWidth=1.5;           dashed=1;fontStyle=0;fontSize=11;           exitX=1;exitY=1;exitDx=0;exitDy=0;           entryX=0;entryY=0;entryDx=0;entryDy=0;strokeColor=#55FF42;dashed=1;" target="monitor" value="SSH">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="920" y="380" />
+              <mxPoint x="1010" y="380" />
+              <mxPoint x="1010" y="800" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-
-        <!-- Wazuh agents -->
-        <mxCell id="17" value="Wazuh events"
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;dashed=1;strokeColor=#FF6B6B;"
-          edge="1" source="4" target="9" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="rr_web1" edge="1" parent="1" source="nginx" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#00897B;strokeWidth=2.5;           fontStyle=1;fontSize=12;           exitX=0;exitY=1;exitDx=0;exitDy=0;           entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#3019FF;" target="web1" value="round-robin | HTTPS">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="560" />
+              <mxPoint x="310" y="560" />
+              <mxPoint x="310" y="610" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-        <mxCell id="18" value=""
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;dashed=1;strokeColor=#FF6B6B;"
-          edge="1" source="5" target="9" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="rr_web2" edge="1" parent="1" source="nginx" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#00897B;strokeWidth=2.5;           fontStyle=1;fontSize=12;           exitX=1;exitY=1;exitDx=0;exitDy=0;           entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#2D1EFF;" target="web2" value="round-robin | HTTPS">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="980" y="560" />
+              <mxPoint x="1170" y="560" />
+              <mxPoint x="1170" y="610" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-        <mxCell id="19" value=""
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;dashed=1;strokeColor=#FF6B6B;"
-          edge="1" source="6" target="9" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="db_web1" edge="1" parent="1" source="web1" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#1565C0;strokeWidth=2;           fontStyle=0;fontSize=11;           exitX=0.5;exitY=1;exitDx=0;exitDy=0;           entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#38F8FF;" target="database" value="port 5432">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="310" y="760" />
+              <mxPoint x="630" y="760" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-        <mxCell id="20" value=""
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;dashed=1;strokeColor=#FF6B6B;"
-          edge="1" source="7" target="9" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="db_web2" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#1565C0;strokeWidth=2;           fontStyle=0;fontSize=11;           exitX=0.5;exitY=1;exitDx=0;exitDy=0;           entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#38F1FF;" value="port 5432">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1146" y="760" />
+              <mxPoint x="826" y="760" />
+            </Array>
+            <mxPoint x="1146.066666666667" y="690" as="sourcePoint" />
+            <mxPoint x="826" y="800" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="21" value=""
-          style="edgeStyle=orthogonalEdgeStyle;
-          rounded=0;dashed=1;strokeColor=#FF6B6B;"
-          edge="1" source="8" target="9" parent="1">
-          <mxGeometry relative="1" as="geometry"/>
+        <mxCell id="w_ctrl" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#C62828;strokeWidth=1.5;           dashed=1;           exitX=1;exitY=0;exitDx=0;exitDy=0;           entryX=0;entryY=0.2;entryDx=0;entryDy=0;strokeColor=#FF9BA2;dashed=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1369" y="237" />
+              <mxPoint x="1369" y="827" />
+              <mxPoint x="1269" y="827" />
+            </Array>
+            <mxPoint x="839" y="237.0666666666666" as="sourcePoint" />
+            <mxPoint x="1269" y="827.0666666666666" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-
+        <mxCell id="w_nginx" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#C62828;strokeWidth=1.5;           dashed=1;           exitX=1;exitY=0;exitDx=0;exitDy=0;           entryX=0;entryY=0.35;entryDx=0;entryDy=0;strokeColor=#FF9EA7;dashed=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1379" y="458" />
+              <mxPoint x="1379" y="866" />
+              <mxPoint x="1279" y="866" />
+            </Array>
+            <mxPoint x="849" y="458.0666666666666" as="sourcePoint" />
+            <mxPoint x="1279" y="866.0666666666666" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="w_web1" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#C62828;strokeWidth=1.5;           dashed=1;           exitX=1;exitY=0.5;exitDx=0;exitDy=0;           entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#FFA0AD;dashed=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1374" y="662" />
+              <mxPoint x="1374" y="852" />
+              <mxPoint x="1274" y="852" />
+            </Array>
+            <mxPoint x="414" y="662.0666666666666" as="sourcePoint" />
+            <mxPoint x="1274" y="852.0666666666666" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="w_web2" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#C62828;strokeWidth=1.5;           dashed=1;           exitX=0.5;exitY=1;exitDx=0;exitDy=0;           entryX=0.5;entryY=0;entryDx=0;entryDy=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1165" y="690" as="sourcePoint" />
+            <mxPoint x="1165" y="800" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="w_db" edge="1" parent="1" source="database" style="edgeStyle=orthogonalEdgeStyle;           strokeColor=#C62828;strokeWidth=1.5;           dashed=1;           exitX=1;exitY=0.5;exitDx=0;exitDy=0;           entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#FF9696;dashed=1;" target="monitor" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wlabel" parent="1" style="text;html=1;align=center;           fontSize=11;fontStyle=2;fontColor=#C62828;" value="Wazuh events (alla 5 servrar)" vertex="1">
+          <mxGeometry height="20" width="240" x="1050" y="690" as="geometry" />
+        </mxCell>
+        <mxCell id="ufw" parent="1" style="text;html=1;align=center;           fontSize=10;fontStyle=2;fontColor=#1565C0;" value="UFW: port 5432 tillåts bara från web1 och web2" vertex="1">
+          <mxGeometry height="18" width="340" x="530" y="888" as="geometry" />
+        </mxCell>
+        <mxCell id="leg" parent="1" style="rounded=1;fillColor=#ffffff;           strokeColor=#cccccc;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="142" width="396" x="275" y="971" as="geometry" />
+        </mxCell>
+        <mxCell id="legtitle" parent="1" style="text;html=1;fontSize=13;" value="&lt;b&gt;Legend&lt;/b&gt;" vertex="1">
+          <mxGeometry height="20" width="100" x="285" y="972" as="geometry" />
+        </mxCell>
+        <mxCell id="ll1" edge="1" parent="1" style="endArrow=block;endFill=1;           strokeColor=#6c8ebf;strokeWidth=2.5;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="285" y="1006" as="sourcePoint" />
+            <mxPoint x="345" y="1006" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lt1" parent="1" style="text;html=1;fontSize=11;" value="Port forwarding (host)" vertex="1">
+          <mxGeometry height="18" width="200" x="353" y="998" as="geometry" />
+        </mxCell>
+        <mxCell id="ll2" edge="1" parent="1" style="endArrow=block;endFill=1;           strokeColor=#9E9E9E;strokeWidth=1.5;dashed=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="285" y="1028" as="sourcePoint" />
+            <mxPoint x="345" y="1028" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lt2" parent="1" style="text;html=1;fontSize=11;" value="SSH — Ansible provisioning" vertex="1">
+          <mxGeometry height="18" width="200" x="353" y="1020" as="geometry" />
+        </mxCell>
+        <mxCell id="ll3" edge="1" parent="1" style="endArrow=block;endFill=1;           strokeColor=#00897B;strokeWidth=2.5;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="285" y="1050" as="sourcePoint" />
+            <mxPoint x="345" y="1050" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lt3" parent="1" style="text;html=1;fontSize=11;" value="Round-robin lastbalansering" vertex="1">
+          <mxGeometry height="18" width="200" x="353" y="1042" as="geometry" />
+        </mxCell>
+        <mxCell id="ll4" edge="1" parent="1" style="endArrow=block;endFill=1;           strokeColor=#1565C0;strokeWidth=2;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="285" y="1070" as="sourcePoint" />
+            <mxPoint x="345" y="1070" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lt4" parent="1" style="text;html=1;fontSize=11;" value="PostgreSQL port 5432 (UFW-begränsad)" vertex="1">
+          <mxGeometry height="18" width="260" x="353" y="1062" as="geometry" />
+        </mxCell>
+        <mxCell id="ll5" edge="1" parent="1" style="endArrow=block;endFill=1;           strokeColor=#C62828;strokeWidth=1.5;dashed=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="285" y="1090" as="sourcePoint" />
+            <mxPoint x="345" y="1090" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lt5" parent="1" style="text;html=1;fontSize=11;" value="Wazuh security events" vertex="1">
+          <mxGeometry height="18" width="200" x="353" y="1082" as="geometry" />
+        </mxCell>
+        <mxCell id="81_CpS4Z2893Y3f9dSt--2" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/management_governance/Managed_Desktop.svg;" value="" vertex="1">
+          <mxGeometry height="34.35" width="36.97" x="622" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="81_CpS4Z2893Y3f9dSt--3" parent="1" style="outlineConnect=0;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;shape=mxgraph.aws3.application_load_balancer;fillColor=#F58534;gradientColor=none;" value="" vertex="1">
+          <mxGeometry height="42" width="44" x="641" y="423" as="geometry" />
+        </mxCell>
+        <mxCell id="81_CpS4Z2893Y3f9dSt--4" parent="1" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#2875E2;strokeColor=#ffffff;points=[[0.005,0.63,0],[0.1,0.2,0],[0.9,0.2,0],[0.5,0,0],[0.995,0.63,0],[0.72,0.99,0],[0.5,1,0],[0.28,0.99,0]];shape=mxgraph.kubernetes.icon2;prIcon=control_plane" value="" vertex="1">
+          <mxGeometry height="44" width="45.83" x="636.17" y="237" as="geometry" />
+        </mxCell>
+        <mxCell id="81_CpS4Z2893Y3f9dSt--5" parent="1" style="image;aspect=fixed;perimeter=ellipsePerimeter;html=1;align=center;shadow=0;dashed=0;spacingTop=3;image=img/lib/active_directory/web_server.svg;" value="" vertex="1">
+          <mxGeometry height="45" width="36" x="202" y="612" as="geometry" />
+        </mxCell>
+        <mxCell id="81_CpS4Z2893Y3f9dSt--6" parent="1" style="image;aspect=fixed;perimeter=ellipsePerimeter;html=1;align=center;shadow=0;dashed=0;spacingTop=3;image=img/lib/active_directory/web_server.svg;" value="" vertex="1">
+          <mxGeometry height="45" width="36" x="1062" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="81_CpS4Z2893Y3f9dSt--8" parent="1" style="image;aspect=fixed;perimeter=ellipsePerimeter;html=1;align=center;shadow=0;dashed=0;spacingTop=3;image=img/lib/active_directory/database_server.svg;" value="" vertex="1">
+          <mxGeometry height="50" width="41" x="636.17" y="802" as="geometry" />
+        </mxCell>
+        <mxCell id="81_CpS4Z2893Y3f9dSt--9" parent="1" style="image;points=[];aspect=fixed;html=1;align=center;shadow=0;dashed=0;image=img/lib/allied_telesis/security/DVS_Surveillance_Monitor.svg;" value="" vertex="1">
+          <mxGeometry height="44" width="30.8" x="1064.6" y="802" as="geometry" />
+        </mxCell>
+        <mxCell id="81_CpS4Z2893Y3f9dSt--14" parent="1" style="text;html=1;align=center;           fontSize=10;fontStyle=2;fontColor=#1565C0;" value="&lt;font style=&quot;font-size: 72px;&quot;&gt;Secure-Infra-Lab&lt;/font&gt;" vertex="1">
+          <mxGeometry height="87" width="617" x="709" y="981" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
 </mxfile>
-```
 
 </details>
 
