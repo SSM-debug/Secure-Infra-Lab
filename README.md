@@ -712,17 +712,12 @@ igenom finns nästa lager kvar.
 
 **Designnotering om listen_addresses:**
 
-PostgreSQL är konfigurerad med `listen_addresses = '*'`
-i nuvarande miljö. Det innebär att databasen lyssnar
-på alla nätverk, men pg_hba.conf och UFW blockerar
-alla anslutningar utom från web1 och web2.
-
-Det är ett medvetet beslut baserat på laboratoriets
-begränsningar. I en produktionsmiljö ska
-`listen_addresses` sättas till specifika IP-adresser
-(`192.168.56.12,192.168.56.13,127.0.0.1`) för ett
-extra skyddslager. Det är dokumenterat som känd
-avvägning i projektet.
+PostgreSQL ar konfigurerad med `listen_addresses`
+satt till web1 och web2 IP-adresser specifikt
+(`192.168.56.12,192.168.56.13`). Databasen lyssnar
+bara pa anslutningar fran dessa tva servrar - inte
+pa alla interfacer. Detta ger ett extra skyddslager
+utover pg_hba.conf och UFW - Defense-in-Depth.
 
 > Fullständig säkerhetsanalys finns i
 > [docs/projektplan.md - Avsnitt 7](docs/projektplan.md).
@@ -765,6 +760,40 @@ Wazuh detekterar:
 > Detaljerad beskrivning av skyddslagren finns i
 > [docs/projektplan.md - Avsnitt 7](docs/projektplan.md).
 
+### CAP-teorem och distribuerade system
+
+CAP-teoremet sager att ett distribuerat system
+bara kan garantera tva av tre egenskaper samtidigt:
+
+- **C**onsistency - alla noder ser samma data
+- **A**vailability - systemet svarar alltid
+- **P**artition tolerance - systemet overlever natverksfel
+
+I detta projekt prioriterar vi **Availability** och
+**Partition tolerance** (AP-system):
+
+- Om web1 går ner fortsätter web2 svara - tillgänglighet
+  prioriteras over konsistens
+- Sessionsdata går forlorad vid failover - vi har ingen
+  delad session-store mellan web1 och web2
+- PostgreSQL ar en Single Point of Failure (SPoF) -
+  om databasen går ner slutar /visit fungera
+
+I produktion atgardas detta med PostgreSQL-replikering
+(primary/replica) eller en managed database-tjanst
+som AWS RDS med Multi-AZ.
+
+### SPoF-analys
+
+| Komponent | SPoF? | Konsekvens | Losning i produktion |
+|-----------|-------|------------|---------------------|
+| nginx | Ja | Hela systemet nar inte | Keepalived/VRRP |
+| web1 | Nej | web2 tar over automatiskt | Passive health checks |
+| web2 | Nej | web1 tar over automatiskt | Passive health checks |
+| database | Ja | /visit slutar fungera | PostgreSQL replikering |
+| monitor | Nej | Overvakning faller bort | Redundant SIEM |
+| control | Nej | Ansible kors inte | Ny control-VM |
+
 ### STRIDE-tabell
 
 | Hot | Kategori | Komponent | Skydd vi har |
@@ -781,34 +810,50 @@ Wazuh detekterar:
 
 ### Kvarvarande brister
 
-**Brist 1 - Okrypterad HTTP mellan nginx och Flask**
+**Brist 1 - nginx ar Single Point of Failure**
 
-Trafiken på det interna nätverket är okrypterad.
-En angripare med tillgång till det interna nätverket
-kan läsa trafiken.
+Om nginx-servern kraschar ar hela systemet otillgangligt
+fran omvarlden. Ingen redundans finns pa lastbalanserarniva.
 
-Accepterat i laboratoriet eftersom nätverket är
-isolerat och bara tillgängligt från värddatorn.
-I produktion: TLS med internt CA-certifikat eller
-WireGuard overlay-nätverk.
+Accepterat i laboratoriet. I produktion: Keepalived/VRRP
+for automatisk failover till en standby-nginx.
 
-**Brist 2 - listen_addresses satt till '*'**
+**Brist 2 - database ar Single Point of Failure**
 
-PostgreSQL tar emot anslutningsförsök från alla
-IP-adresser. pg_hba.conf och UFW blockerar obehöriga
-men det är inte Defense-in-Depth.
+Ingen PostgreSQL-replikering finns. Om database-servern
+kraschar slutar /visit fungera - ingen data kan sparas
+eller lasas.
 
-Accepterat i laboratoriet - dokumenterat som känd
-avvägning. I produktion: specifika IP-adresser.
+Accepterat i laboratoriet. I produktion: PostgreSQL
+primary/replica-uppsattning eller AWS RDS Multi-AZ.
 
-**Brist 3 - Wazuh utan active response**
+**Brist 3 - secrets.yml i klartext pa disk**
 
-Wazuh detekterar hot men blockerar dem inte
-automatiskt. Active response konfigureras separat.
+Databasuppgifter lagras okrypterat i secrets.yml pa
+control-VM. Filen gitignoreras men ar lasbar pa disk.
 
-Accepterat i laboratoriet. I produktion: aktivera
-active response för automatisk IP-blockering vid
-brute-force-attacker.
+Accepterat i laboratoriet. I produktion: HashiCorp Vault
+eller AWS Secrets Manager for hantering av hemligheter.
+
+**Brist 4 - Ingen CI/CD-pipeline**
+
+Reproducerbarhet verifieras manuellt efter varje
+destroy && up. Ingen automatisk verifiering vid
+varje commit till GitHub.
+
+Accepterat i laboratoriet. I produktion: GitHub Actions
+som kor vagrant destroy && up && ansible-playbook
+automatiskt vid varje push till main.
+
+**Brist 5 - Sjalvsignerat TLS-certifikat**
+
+nginx accepterar Flask-certifikatet utan verifiering
+(proxy_ssl_verify off). Krypteringen fungerar men
+certifikatets identitet verifieras inte.
+
+Accepterat i laboratoriet eftersom certifikatet
+genereras av Ansible och bada parter ar kanda.
+I produktion: CA-signerat certifikat eller internt CA.
 
 ---
 
