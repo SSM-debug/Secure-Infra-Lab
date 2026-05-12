@@ -2512,3 +2512,55 @@ IDS/IPS och SOC-overvakning.
 
 ---
 ---
+
+## Fas 10 — Finslipning inför presentation
+**Datum:** 2026-05-12
+**Git-commits:**
+- `docs: fix swedish character encoding`
+- `fix(ansible): remove redundant server_name from site.yml, use host_vars only`
+- `feat(vagrant): add synced_folder for ansible - eliminates manual vagrant upload`
+- `feat(vagrant): add synced_folder for scripts - eliminates last manual upload`
+- `docs: remove vagrant upload step - replaced by synced_folder`
+
+### Vad vi gjorde
+
+Vi identifierade och åtgärdade tre brister inför presentation:
+
+1. Encoding-fel i README.md och log.md - å, ä, ö saknades på grund av
+   felaktig teckenkodning. 34 ord korrigerades manuellt.
+
+2. Redundant server_name i site.yml - variabeln `server_name: "Server 2"`
+   fanns både i host_vars/web2.yml och som inline vars i site.yml.
+   Inline-versionen togs bort. host_vars är nu enda källa.
+
+3. Manuellt vagrant upload-steg eliminerades - två synced_folder-rader
+   lades till i Vagrantfile för control-VM. ansible- och scripts-mapparna
+   monteras nu automatiskt vid vagrant up.
+
+### Kommandon vi körde
+
+```powershell
+# Verifiera att ändringarna fungerar
+cd E:\Secure-Infra-Lab\vagrant
+vagrant reload control
+vagrant ssh control
+bash ~/scripts/verify.sh
+# Resultat: PASS=38 FAIL=0
+
+cd E:\Secure-Infra-Lab
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_host.ps1
+# Resultat: PASS=6 FAIL=0
+```
+
+### Teorikoppling
+
+**Koncept: DRY-principen (Don't Repeat Yourself)**
+**Enkelt:** Samma information ska bara finnas på ett ställe. Om den
+finns på två ställen och du ändrar ett ställe glömmer du lätt det andra.
+**Vårt projekt:** server_name för web2 fanns i både host_vars/web2.yml
+och site.yml. Vi tog bort den från site.yml - host_vars är nu enda källa.
+**Verkligheten:** En databaskonfiguration som finns i tre olika filer -
+en ändring i en fil utan att uppdatera de andra orsakar svårhittade fel.
+
+---
+---
