@@ -1,4 +1,6 @@
 ---
+# --- Install PostgreSQL and required packages ----------------------------
+# python3-psycopg2 is required by Ansible's postgresql modules
 - name: Install PostgreSQL and required packages
   apt:
     name:
@@ -8,12 +10,15 @@
     state: present
     update_cache: yes
 
+# --- Ensure PostgreSQL is running ----------------------------------------
 - name: Ensure PostgreSQL service is started and enabled
   service:
     name: postgresql
     state: started
     enabled: yes
 
+# --- Create application database user ------------------------------------
+# Uses least privilege - only this user connects to the app database
 - name: Create database user
   postgresql_user:
     name: "{{ db_user }}"
@@ -21,6 +26,7 @@
     state: present
   become_user: postgres
 
+# --- Create application database -----------------------------------------
 - name: Create database
   postgresql_db:
     name: "{{ db_name }}"
@@ -28,26 +34,32 @@
     state: present
   become_user: postgres
 
+# --- Deploy schema file to temp location ---------------------------------
 - name: Deploy database schema
   template:
     src: schema.sql.j2
     dest: /tmp/schema.sql
     mode: '0644'
 
+# --- Run schema to create tables -----------------------------------------
 - name: Run database schema
   community.postgresql.postgresql_script:
     db: "{{ db_name }}"
     path: /tmp/schema.sql
   become_user: postgres
 
+# --- Restrict PostgreSQL to listen only on web1 and web2 IPs ------------
+# Defense-in-depth: PostgreSQL does not listen on all interfaces
+# Only web1 and web2 can reach the database at the network level
 - name: Set PostgreSQL listen_addresses
   lineinfile:
     path: /etc/postgresql/14/main/postgresql.conf
     regexp: "^#?listen_addresses"
-    line: "listen_addresses = '*'"
+    line: "listen_addresses = '{{ webserver_ip }},{{ webserver2_ip }}'"
     state: present
   notify: Restart postgresql
 
+# --- Allow web1 to authenticate via pg_hba.conf --------------------------
 - name: Allow web1 in pg_hba.conf
   postgresql_pg_hba:
     dest: /etc/postgresql/14/main/pg_hba.conf
@@ -59,6 +71,7 @@
     state: present
   notify: Restart postgresql
 
+# --- Allow web2 to authenticate via pg_hba.conf --------------------------
 - name: Allow web2 in pg_hba.conf
   postgresql_pg_hba:
     dest: /etc/postgresql/14/main/pg_hba.conf
@@ -70,12 +83,14 @@
     state: present
   notify: Restart postgresql
 
+# --- Firewall: allow SSH from anywhere -----------------------------------
 - name: Allow SSH
   ufw:
     rule: allow
     port: "22"
     proto: tcp
 
+# --- Firewall: allow web1 to reach PostgreSQL ----------------------------
 - name: Allow web1 to reach PostgreSQL
   ufw:
     rule: allow
@@ -83,6 +98,7 @@
     port: "5432"
     proto: tcp
 
+# --- Firewall: allow web2 to reach PostgreSQL ----------------------------
 - name: Allow web2 to reach PostgreSQL
   ufw:
     rule: allow
@@ -90,6 +106,7 @@
     port: "5432"
     proto: tcp
 
+# --- Enable UFW and deny all other traffic -------------------------------
 - name: Enable UFW
   ufw:
     state: enabled
