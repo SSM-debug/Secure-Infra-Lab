@@ -1,10 +1,11 @@
-# Managed by Ansible — do not edit manually
+# Managed by Ansible - do not edit manually
 
 # Define the upstream Flask servers
 # nginx distributes requests between web1 and web2 in round-robin order
+# Health check: if a server fails 2 times within 30s, mark it as down for 10s
 upstream flask_servers {
-    server {{ webserver_ip }}:{{ flask_port }};
-    server {{ webserver2_ip }}:{{ flask_port }};
+    server {{ webserver_ip }}:{{ flask_port }}   fail_timeout=30s max_fails=2;
+    server {{ webserver2_ip }}:{{ flask_port }}  fail_timeout=30s max_fails=2;
 }
 
 server {
@@ -16,8 +17,11 @@ server {
         proxy_pass http://flask_servers;
 
         # Pass original request headers to Flask
-        proxy_set_header Host            $host;
-        proxy_set_header X-Real-IP       $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host             $host;
+        proxy_set_header X-Real-IP        $remote_addr;
+        proxy_set_header X-Forwarded-For  $proxy_add_x_forwarded_for;
+
+        # If upstream fails, try the other server instead
+        proxy_next_upstream error timeout http_502 http_503 http_504;
     }
 }
