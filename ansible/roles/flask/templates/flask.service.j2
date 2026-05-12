@@ -1,31 +1,34 @@
-﻿[Unit]
+[Unit]
 Description=Flask application running via Gunicorn
 After=network.target
 
 [Service]
-# Run as the vagrant user — never as root
+# Run as the vagrant user - never as root
 User={{ flask_user }}
 Group={{ flask_user }}
 
-# Load environment variables from .env file
+# Load environment variables from env file
 # Contains database credentials and server name
 EnvironmentFile={{ flask_env_file }}
 
 # Working directory
 WorkingDirectory=/home/{{ flask_user }}
 
-# Start command — Gunicorn serves Flask on 0.0.0.0:5000
+# Start command - Gunicorn serves Flask over HTTPS on port 5000
+# --certfile and --keyfile enable TLS
 ExecStart=/usr/local/bin/gunicorn \
-    --workers 2 \
-    --bind 0.0.0.0:{{ flask_port }} \
-    --log-file {{ flask_log }} \
-    app:app
+  --workers 2 \
+  --bind 0.0.0.0:{{ flask_port }} \
+  --certfile /etc/flask-tls/flask.crt \
+  --keyfile /etc/flask-tls/flask.key \
+  --log-file {{ flask_log }} \
+  app:app
 
 # Restart automatically if the service crashes
 Restart=always
 RestartSec=3
 
-# Security hardening — restrict what the service can do
+# Security hardening - restrict what the service can do
 NoNewPrivileges=true
 PrivateTmp=true
 

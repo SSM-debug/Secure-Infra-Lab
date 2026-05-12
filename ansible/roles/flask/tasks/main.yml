@@ -1,13 +1,16 @@
 ---
+# --- Install Python, pip and required system packages --------------------
 - name: Install Python, pip and required system packages
   apt:
     name:
       - python3
       - python3-pip
       - python3-psycopg2
+      - openssl
     state: present
     update_cache: yes
 
+# --- Install Flask and Gunicorn ------------------------------------------
 - name: Install Flask and Gunicorn
   pip:
     name:
@@ -16,6 +19,46 @@
     state: present
     executable: pip3
 
+# --- Create directory for TLS certificate --------------------------------
+- name: Create directory for TLS certificate
+  file:
+    path: /etc/flask-tls
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+# --- Generate self-signed TLS certificate for Flask ----------------------
+# Creates a private key and certificate valid for 365 days
+# The certificate is used by Gunicorn to serve Flask over HTTPS
+- name: Generate self-signed TLS certificate
+  command: >
+    openssl req -x509 -nodes -days 365
+    -newkey rsa:2048
+    -keyout /etc/flask-tls/flask.key
+    -out /etc/flask-tls/flask.crt
+    -subj "/CN={{ ansible_host }}"
+  args:
+    creates: /etc/flask-tls/flask.crt
+
+# --- Set strict permissions on private key -------------------------------
+# Private key must not be readable by other users
+- name: Set permissions on TLS private key
+  file:
+    path: /etc/flask-tls/flask.key
+    owner: "{{ flask_user }}"
+    group: "{{ flask_user }}"
+    mode: '0600'
+
+# --- Set permissions on certificate --------------------------------------
+- name: Set permissions on TLS certificate
+  file:
+    path: /etc/flask-tls/flask.crt
+    owner: "{{ flask_user }}"
+    group: "{{ flask_user }}"
+    mode: '0644'
+
+# --- Copy app.py to server -----------------------------------------------
 - name: Copy app.py to server
   copy:
     src: app.py
@@ -25,6 +68,7 @@
     mode: '0644'
   notify: Restart flask
 
+# --- Create Flask environment file ---------------------------------------
 - name: Create Flask environment file
   template:
     src: flask.env.j2
@@ -34,6 +78,7 @@
     mode: '0600'
   notify: Restart flask
 
+# --- Deploy Flask systemd service ----------------------------------------
 - name: Deploy Flask systemd service
   template:
     src: flask.service.j2
@@ -43,10 +88,12 @@
     mode: '0644'
   notify: Restart flask
 
+# --- Reload systemd daemon -----------------------------------------------
 - name: Reload systemd daemon
   systemd:
     daemon_reload: yes
 
+# --- Enable and start Flask service --------------------------------------
 - name: Enable and start Flask service
   service:
     name: flask

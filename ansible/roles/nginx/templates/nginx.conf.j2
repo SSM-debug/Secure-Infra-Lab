@@ -1,7 +1,7 @@
 # Managed by Ansible - do not edit manually
 
 # Define the upstream Flask servers
-# nginx distributes requests between web1 and web2 in round-robin order
+# nginx communicates with Flask over HTTPS (TLS)
 # Health check: if a server fails 2 times within 30s, mark it as down for 10s
 upstream flask_servers {
     server {{ webserver_ip }}:{{ flask_port }}   fail_timeout=30s max_fails=2;
@@ -12,9 +12,13 @@ server {
     listen 80;
     server_name _;
 
-    # Forward all requests to the Flask upstream
+    # Forward all requests to the Flask upstream over HTTPS
     location / {
-        proxy_pass http://flask_servers;
+        # Use HTTPS because Gunicorn now serves Flask with TLS
+        proxy_pass https://flask_servers;
+
+        # Do not verify self-signed certificate - lab environment only
+        proxy_ssl_verify off;
 
         # Pass original request headers to Flask
         proxy_set_header Host             $host;
