@@ -38,8 +38,6 @@
   vars_files:
     - vars/vars.yml
     - secrets.yml
-  vars:
-    server_name: "Server 2"
   roles:
     - flask
 
