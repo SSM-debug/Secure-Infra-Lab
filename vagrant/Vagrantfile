@@ -50,6 +50,22 @@ Vagrant.configure("2") do |config|
       chmod 700 /home/vagrant/ansible_local
       chown -R vagrant:vagrant /home/vagrant/ansible_local
 
+      # Copy ansible.cfg to /etc/ansible/ so Ansible finds it
+      # regardless of world-writable permissions on synced_folder
+      mkdir -p /etc/ansible
+      cp /home/vagrant/ansible/ansible.cfg /etc/ansible/ansible.cfg
+
+      # Create secrets.yml automatically - no manual step needed
+      # NOTE: In production, use HashiCorp Vault instead
+      cat > /home/vagrant/ansible/secrets.yml << 'ENDSECRETS'
+---
+db_name: flaskdb
+db_user: flaskuser
+db_password: StrongPassword123
+ENDSECRETS
+      chown vagrant:vagrant /home/vagrant/ansible/secrets.yml
+      chmod 600 /home/vagrant/ansible/secrets.yml
+
       # Copy Vagrant private keys to local SSH directory
       # synced_folder files cannot have chmod applied (Windows NTFS limitation)
       # Copying to local directory allows correct 0600 permissions for SSH
@@ -64,6 +80,25 @@ Vagrant.configure("2") do |config|
       chmod 600 /home/vagrant/.ssh/database_key
       chmod 600 /home/vagrant/.ssh/monitor_key
       chown vagrant:vagrant /home/vagrant/.ssh/*_key
+
+      # Create SSH config so all SSH commands use correct keys automatically
+      # This means verify.sh and manual SSH work without specifying keys
+      cat > /home/vagrant/.ssh/config << 'SSHCONFIG'
+Host 192.168.56.10
+    IdentityFile /home/vagrant/.ssh/id_rsa
+Host 192.168.56.11
+    IdentityFile /home/vagrant/.ssh/nginx_key
+Host 192.168.56.12
+    IdentityFile /home/vagrant/.ssh/web1_key
+Host 192.168.56.13
+    IdentityFile /home/vagrant/.ssh/web2_key
+Host 192.168.56.14
+    IdentityFile /home/vagrant/.ssh/database_key
+Host 192.168.56.15
+    IdentityFile /home/vagrant/.ssh/monitor_key
+SSHCONFIG
+      chmod 600 /home/vagrant/.ssh/config
+      chown vagrant:vagrant /home/vagrant/.ssh/config
 
       echo "=== control: ready ==="
       # Distribute SSH public key to all other VMs
@@ -87,7 +122,7 @@ Vagrant.configure("2") do |config|
 
     nginx.vm.provider "virtualbox" do |vb|
       vb.name   = "nginx"
-      vb.memory = 512
+      vb.memory = 768
       vb.cpus   = 1
     end
 
@@ -105,7 +140,7 @@ Vagrant.configure("2") do |config|
 
     web1.vm.provider "virtualbox" do |vb|
       vb.name   = "web1"
-      vb.memory = 512
+      vb.memory = 768
       vb.cpus   = 1
     end
 
@@ -123,7 +158,7 @@ Vagrant.configure("2") do |config|
 
     web2.vm.provider "virtualbox" do |vb|
       vb.name   = "web2"
-      vb.memory = 512
+      vb.memory = 768
       vb.cpus   = 1
     end
 
@@ -168,6 +203,16 @@ Vagrant.configure("2") do |config|
       apt-get update -y
       echo "=== monitor: ready ==="
     SHELL
+  end
+
+  # ─── Copy SSH keys after all VMs are up ──────────────────
+  # trigger.after :up runs AFTER all VMs are started
+  # Runs copy_keys.sh inside control-VM via vagrant ssh
+  config.trigger.after :up do |trigger|
+    trigger.name = "Copy SSH keys to control"
+    trigger.run = {
+      inline: "vagrant ssh control -c 'bash /home/vagrant/scripts/copy_keys.sh'"
+    }
   end
 
 end
