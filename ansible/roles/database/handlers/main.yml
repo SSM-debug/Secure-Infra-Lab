@@ -1,6 +1,16 @@
 ---
 # Restart PostgreSQL only when configuration has changed
+# Uses postgresql@14-main - the actual service (not the wrapper)
+# wait_for_connection ensures PostgreSQL is ready before Ansible continues
 - name: Restart postgresql
   service:
-    name: postgresql
+    name: postgresql@14-main
     state: restarted
+
+# Wait for PostgreSQL port to be available after restart
+- name: Wait for postgresql
+  wait_for:
+    host: 127.0.0.1
+    port: 5432
+    delay: 3
+    timeout: 60

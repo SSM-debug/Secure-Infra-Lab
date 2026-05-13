@@ -25,6 +25,14 @@
     <protocol>tcp</protocol>
   </remote>
 
+  <!-- Define the firewall-drop command -->
+  <!-- This command blocks an IP using iptables when triggered -->
+  <command>
+    <name>firewall-drop</name>
+    <executable>firewall-drop</executable>
+    <timeout_allowed>yes</timeout_allowed>
+  </command>
+
   <!-- Active Response: automatically block brute force attackers -->
   <!-- firewall-drop: runs a script that adds a firewall block rule on the agent -->
   <!-- location local: the block runs on the agent where the event was detected -->

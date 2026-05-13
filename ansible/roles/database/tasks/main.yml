@@ -17,6 +17,30 @@
     state: started
     enabled: yes
 
+# --- Fix listen_addresses before starting PostgreSQL -------------------
+# Must be done before connecting to the database
+# PostgreSQL cannot bind to web1/web2 IPs - only its own IP
+- name: Set PostgreSQL listen_addresses
+  lineinfile:
+    path: /etc/postgresql/14/main/postgresql.conf
+    regexp: "^#?listen_addresses"
+    line: "listen_addresses = '{{ database_ip }}'"
+    state: present
+
+# --- Restart PostgreSQL to apply listen_addresses ----------------------
+- name: Restart PostgreSQL to apply listen_addresses
+  service:
+    name: postgresql@14-main
+    state: restarted
+
+# --- Wait for PostgreSQL to be ready on its own IP -------------------
+- name: Wait for PostgreSQL to be ready
+  wait_for:
+    host: "{{ database_ip }}"
+    port: 5432
+    delay: 3
+    timeout: 60
+
 # --- Create application database user ------------------------------------
 # Uses least privilege - only this user connects to the app database
 - name: Create database user
@@ -48,17 +72,16 @@
     path: /tmp/schema.sql
   become_user: postgres
 
-# --- Restrict PostgreSQL to listen only on web1 and web2 IPs ------------
-# Defense-in-depth: PostgreSQL does not listen on all interfaces
-# Only web1 and web2 can reach the database at the network level
+# --- Restrict PostgreSQL to listen only on its own IP address
+# listen_addresses controls which interface PostgreSQL listens on
+# Defense-in-depth: UFW and pg_hba.conf control who can connect
 - name: Set PostgreSQL listen_addresses
   lineinfile:
     path: /etc/postgresql/14/main/postgresql.conf
     regexp: "^#?listen_addresses"
-    line: "listen_addresses = '{{ webserver_ip }},{{ webserver2_ip }}'"
+    line: "listen_addresses = '{{ database_ip }}'"
     state: present
-  notify: Restart postgresql
-
+  
 # --- Allow web1 to authenticate via pg_hba.conf --------------------------
 - name: Allow web1 in pg_hba.conf
   postgresql_pg_hba:

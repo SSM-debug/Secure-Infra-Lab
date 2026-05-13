@@ -28,12 +28,13 @@
 
 # --- Deploy ossec.conf with active response enabled ----------------------
 # Deploys configuration that blocks IPs after repeated SSH failures
+# Group changed from ossec to wazuh - Wazuh 4.x renamed the group
 - name: Deploy Wazuh manager configuration
   template:
     src: ossec.conf.j2
     dest: /var/ossec/etc/ossec.conf
     owner: root
-    group: ossec
+    group: wazuh
     mode: '0640'
   notify: Restart wazuh-manager
 
