@@ -48,3 +48,13 @@
     line: "Defaults !requiretty"
     validate: "visudo -cf %s"
     state: present
+
+# ─── Create Ansible tmp directory for root ───────────────────
+# Prevents warning about missing tmp directory during playbook runs
+- name: Create Ansible tmp directory for root
+  file:
+    path: /root/.ansible/tmp
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
