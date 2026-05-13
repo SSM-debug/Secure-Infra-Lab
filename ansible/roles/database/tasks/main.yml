@@ -17,16 +17,6 @@
     state: started
     enabled: yes
 
-# ─── Create Ansible tmp directory for postgres ───────────────
-# Prevents warning about missing tmp directory during playbook runs
-- name: Create Ansible tmp directory for postgres
-  file:
-    path: /var/lib/postgresql/.ansible/tmp
-    state: directory
-    owner: postgres
-    group: postgres
-    mode: '0700'
-
 # --- Fix listen_addresses before starting PostgreSQL -------------------
 # Must be done before connecting to the database
 # PostgreSQL cannot bind to web1/web2 IPs - only its own IP
