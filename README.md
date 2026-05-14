@@ -23,12 +23,15 @@ E:\Secure-Infra-Lab\vagrant> vagrant up
 
 ```bash
 # 2. Konfigurera hela infrastrukturen med Ansible (15-20 min)
+# OBS: Om dpkg-lås blockerar installation (rc=100) - vänta 2 min och kör om
+# OBS: Om failed=1 på någon server - kör kommandot en gång till (Ansible är idempotent)
 vagrant@control:~$ ansible-playbook ~/ansible/site.yml
 # Förväntat: failed=0 på alla 6 servrar
 ```
 
 ```bash
 # 3. Verifiera från control-VM
+# OBS: Om Round-robin FAIL dyker upp - kör en gång till (nginx rotationsstatus varierar)
 vagrant@control:~$ bash ~/scripts/verify.sh
 # Förväntat: PASS=38 FAIL=0
 ```
@@ -319,13 +322,13 @@ för att exportera som bild.
 Secure-Infra-Lab/
 |
 +-- .gitattributes          # Enforces LF line endings for all files
-+-- .gitignore              # Ignores secrets.yml and .vagrant/
++-- .gitignore              # Ignores secrets.yml, .vagrant/ and ansible/secrets.yml
 +-- README.md               # This document
 |
 +-- docs/
-|   +-- projektplan.md      # System design and architecture
+|   +-- projektplan.md      # System design, architecture and role descriptions
 |   +-- log.md              # Technical documentation phase by phase
-|   +-- architecture.drawio # Visual architecture diagram
+|   +-- architecture.drawio # Visual architecture diagram (open at diagrams.net)
 |
 +-- scripts/
 |   +-- verify.sh           # 38 automated tests from control-VM
@@ -333,24 +336,68 @@ Secure-Infra-Lab/
 |   +-- copy_keys.sh        # Copies Vagrant SSH keys automatically after vagrant up
 |
 +-- vagrant/
-|   +-- Vagrantfile         # Defines all 6 VMs, RAM, network and triggers
+|   +-- Vagrantfile         # Defines all 6 VMs, RAM, network, triggers and provisioning
 |   +-- secrets.yml         # GITIGNORED - database credentials, create manually
 |
 +-- ansible/
-    +-- ansible.cfg         # Ansible configuration (inventory path, SSH settings)
-    +-- inventory.ini       # All servers, groups and SSH key paths
+    +-- ansible.cfg         # Ansible settings (inventory path, SSH, pipelining)
+    +-- inventory.ini       # All servers, groups and SSH key paths per VM
     +-- site.yml            # Master playbook - orchestrates all roles in order
-    +-- vars/vars.yml       # Shared variables (IP addresses, ports, users)
-    +-- host_vars/web2.yml  # server_name override for web2 (DRY principle)
+    +-- secrets.yml         # GITIGNORED - created automatically by Vagrantfile
+    +-- vars/
+    |   +-- vars.yml        # Shared variables (IP addresses, ports, flask_user)
+    +-- host_vars/
+    |   +-- web2.yml        # Overrides server_name to "Server 2" for web2 (DRY)
     |
     +-- roles/
-        +-- security_hardening/ # SSH hardening, fail2ban, auditd on all servers
-        +-- flask/              # Flask + Gunicorn + TLS on web1 and web2
-        +-- nginx/              # Load balancer with round-robin and health checks
-        +-- database/           # PostgreSQL + UFW + pg_hba.conf isolation
-        +-- wazuh_manager/      # Wazuh Manager + Active Response on monitor
-        +-- wazuh_agent/        # Wazuh agents on control, nginx, web1, web2, database
-        +-- cockpit/            # Web-based dashboard on monitor (port 9090)
+        +-- security_hardening/     # SSH hardening, fail2ban, auditd - runs first on all servers
+        |   +-- tasks/main.yml      # Installs and configures fail2ban, auditd, SSH hardening
+        |   +-- handlers/main.yml   # Restarts sshd when sshd_config changes
+        |   +-- templates/
+        |   |   +-- sshd_config.j2  # Hardened SSH config (no root, no password, MaxAuthTries 3)
+        |   +-- vars/main.yml       # SSH port, max_auth_tries, login_grace_time
+        |
+        +-- flask/                  # Flask + Gunicorn + TLS on web1 and web2
+        |   +-- tasks/main.yml      # Installs Python, Flask, Gunicorn, TLS cert, systemd service
+        |   +-- handlers/main.yml   # Restarts flask when app.py or config changes
+        |   +-- files/
+        |   |   +-- app.py          # Flask application with /, /secret and /visit routes
+        |   +-- templates/
+        |   |   +-- flask.env.j2    # Environment file with DB credentials (mode 0600)
+        |   |   +-- flask.service.j2 # systemd service (User=vagrant, NoNewPrivileges, Restart=always)
+        |   +-- vars/main.yml       # flask_app_dest, flask_env_file, flask_port, flask_user
+        |   +-- defaults/main.yml   # server_name: "Server 1" (lowest priority, overridden by host_vars)
+        |
+        +-- nginx/                  # Load balancer with round-robin and passive health checks
+        |   +-- tasks/main.yml      # Installs nginx, deploys config, enables site
+        |   +-- handlers/main.yml   # Restarts nginx when nginx.conf.j2 changes
+        |   +-- templates/
+        |   |   +-- nginx.conf.j2   # Upstream block with web1/web2, max_fails=2, proxy_pass HTTPS
+        |   +-- vars/main.yml       # nginx_port, nginx_config_dir, sites_available, sites_enabled
+        |
+        +-- database/               # PostgreSQL + UFW + pg_hba.conf isolation
+        |   +-- tasks/main.yml      # Installs PostgreSQL, creates DB/user, sets listen_addresses, UFW
+        |   +-- handlers/main.yml   # Restarts postgresql@14-main, waits for port 5432
+        |   +-- templates/
+        |   |   +-- schema.sql.j2   # Creates visits table, grants SELECT/INSERT to flaskuser
+        |   +-- vars/main.yml       # postgresql_port, postgresql_data_dir, postgresql_config_dir
+        |
+        +-- wazuh_manager/          # Wazuh Manager + Active Response on monitor
+        |   +-- tasks/main.yml      # Adds Wazuh repo, installs Manager, deploys ossec.conf
+        |   +-- handlers/main.yml   # Restarts wazuh-manager when ossec.conf changes
+        |   +-- templates/
+        |   |   +-- ossec.conf.j2   # Active Response: firewall-drop on rule 5763 (SSH brute-force)
+        |   +-- vars/main.yml       # wazuh_manager_port, registration_port, api_port, alerts_log
+        |
+        +-- wazuh_agent/            # Wazuh agents on control, nginx, web1, web2, database
+        |   +-- tasks/main.yml      # Adds Wazuh repo, installs agent with WAZUH_MANAGER env var
+        |   +-- handlers/main.yml   # Restarts wazuh-agent when configuration changes
+        |   +-- vars/main.yml       # wazuh_manager_ip, wazuh_agent_port, registration_port
+        |
+        +-- cockpit/                # Web-based dashboard on monitor (port 9090)
+            +-- tasks/main.yml      # Installs and starts Cockpit via apt
+            +-- handlers/main.yml   # Restarts cockpit when configuration changes
+            +-- vars/main.yml       # cockpit_port: 9090
 ```
 
 Viktiga filer på GitHub:
@@ -506,6 +553,8 @@ att allt fungerar som förväntat.
 [Se skriptet på GitHub](https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/scripts/verify.sh)
 
 ```bash
+# OBS: Om Round-robin FAIL dyker upp - kör en gång till (nginx rotationsstatus varierar)
+# OBS: Om failed=1 uppstod under playbook-körning - kör ansible-playbook en gång till
 vagrant@control:~$ bash ~/scripts/verify.sh
 ```
 
