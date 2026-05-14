@@ -136,12 +136,12 @@ blockerade.
 | Server | IP-adress | Uppgift | RAM | Nabar utifran |
 |--------|-----------|---------|-----|---------------|
 | control | 192.168.56.10 | Kor Ansible | 1024 MB | Nej |
-| nginx | 192.168.56.11 | Tar emot besok, skickar vidare | 512 MB | Ja - port 8080 |
-| web1 | 192.168.56.12 | Webbapp (Server 1) | 512 MB | Nej |
-| web2 | 192.168.56.13 | Webbapp (Server 2) | 512 MB | Nej |
-| database | 192.168.56.14 | Sparar besok i PostgreSQL | 512 MB | Nej |
+| nginx | 192.168.56.11 | Tar emot besok, skickar vidare | 768 MB | Ja - port 8080 |
+| web1 | 192.168.56.12 | Webbapp (Server 1) | 768 MB | Nej |
+| web2 | 192.168.56.13 | Webbapp (Server 2) | 768 MB | Nej |
+| database | 192.168.56.14 | Sparar besok i PostgreSQL | 1024 MB | Nej |
 | monitor | 192.168.56.15 | Wazuh + Cockpit | 2048 MB | Ja - port 9090 |
-| **Totalt** | | | **5120 MB** | |
+| **Totalt** | | | **6400 MB** | |
 
 ---
 
@@ -159,6 +159,7 @@ Secure-Infra-Lab/
 +-- scripts/
 |   +-- verify.sh               # Automatiska tester fran control (38/38)
 |   +-- verify_host.ps1         # Automatiska tester fran Windows (6/6)
+|   +-- copy_keys.sh            # Kopierar SSH-nycklar automatiskt via Vagrant trigger
 |
 +-- vagrant/
 |   +-- Vagrantfile             # Beskriver alla 6 servrar som kod
@@ -377,7 +378,9 @@ Dokumentation: https://cockpit-project.org/
 | Fas 6 | nginx - konfigurera lastbalanseraren |
 | Fas 7 | wazuh_manager, wazuh_agent och cockpit - säkerhetsövervakning |
 | Fas 8 | Verifieringsskript - automatiska tester (38/38 och 6/6) |
-| Fas 9 | Rapport och presentation |
+| Fas 9 | Förbättringar: failover, TLS, Active Response, listen_addresses |
+| Fas 10 | Finslipning: synced_folder, encoding-fix, DRY-principen |
+| Fas 11 | Automatisering: SSH-nycklar, RAM, PostgreSQL, Wazuh, README v5 |
 
 ---
 
