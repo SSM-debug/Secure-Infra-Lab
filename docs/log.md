@@ -2564,3 +2564,408 @@ en ändring i en fil utan att uppdatera de andra orsakar svårhittade fel.
 
 ---
 ---
+
+## Fas 11 — Automatisering och säkerhetsförbättringar
+**Datum:** 2026-05-14
+**Git-branch:** fix/synced-folder-permissions → mergad till main
+**Git-commits:**
+- `fix(vagrant): fix world-writable permissions and add SSH key generation`
+- `fix(vagrant): increase RAM for nginx/web1/web2 to 768MB, add trigger for SSH keys, add SSH config`
+- `fix: add ansible tmp dirs, add authorized_keys for control, update gitignore`
+- `fix(ansible): remove redundant server_name from site.yml, use host_vars only`
+- `fix(ansible): remove remote_tmp - caused permission denied for postgres user`
+- `feat(vagrant): add synced_folder for ansible - eliminates manual vagrant upload`
+- `feat(vagrant): add synced_folder for scripts - eliminates last manual upload`
+- `fix(ansible): use remote_tmp in ansible.cfg to eliminate tmp directory warnings`
+- `fix: resolve ansible world-writable, SSH keys, PostgreSQL and Wazuh issues`
+- `docs: README v5 - complete rewrite with ordlista, felsökning, cattle vs pets, container vs hypervisor`
+
+### Vad vi gjorde
+
+Vi identifierade och löste sex kritiska problem som
+hindrade `ansible-playbook site.yml` från att köra
+utan manuella ingrepp. Målet var fullständig
+reproducerbarhet: `vagrant destroy -f ; vagrant up`
+följt av `ansible-playbook ~/ansible/site.yml` ska
+ge 38/38 och 6/6 utan ett enda manuellt steg.
+
+Vi skapade en ny branch `fix/synced-folder-permissions`,
+löste alla problem och mergade till main. README
+skrevs om helt från grunden till version 5.
+
+---
+
+### Rollöversikt
+
+```
+Fas 11 löste sex problem och implementerade sex förbättringar:
+
+Problem 1: Ansible ignorerade ansible.cfg (world-writable)
+Problem 2: SSH-nycklar kopierades för tidigt (race condition)
+Problem 3: PostgreSQL startade inte (listen_addresses fel)
+Problem 4: Wazuh Manager startade inte (group ossec → wazuh)
+Problem 5: Active Response fungerade inte (firewall-drop)
+Problem 6: RAM-brist på nginx/web1/web2 (OOM, rc=137)
+
+Förbättring 1: synced_folder för ansible/ och scripts/
+Förbättring 2: SSH-nycklar kopieras automatiskt via trigger
+Förbättring 3: SSH config skapas automatiskt per VM
+Förbättring 4: secrets.yml skapas automatiskt i Vagrantfile
+Förbättring 5: authorized_keys för control skapas automatiskt
+Förbättring 6: /etc/ansible/ansible.cfg kopieras automatiskt
+```
+
+### Filöversikt
+
+```
+Ändrade filer:
+├── vagrant/Vagrantfile              ✅ (synced_folder, trigger, RAM, SSH config)
+├── ansible/inventory.ini            ✅ (Vagrants egna nycklar per VM)
+├── ansible/ansible.cfg              ✅ (remote_tmp borttagen)
+├── ansible/roles/database/
+│   ├── tasks/main.yml               ✅ (listen_addresses = database_ip)
+│   └── handlers/main.yml            ✅ (postgresql@14-main, wait_for)
+├── ansible/roles/wazuh_manager/
+│   ├── tasks/main.yml               ✅ (group: wazuh)
+│   └── templates/ossec.conf.j2      ✅ (explicit firewall-drop command block)
+├── scripts/copy_keys.sh             ✅ (ny fil - kopierar SSH-nycklar automatiskt)
+├── .gitignore                       ✅ (ansible/secrets.yml tillagd)
+└── README.md                        ✅ (version 5 - komplett omskrivning)
+```
+
+### Varför detta steg är viktigt
+
+Utan dessa fixar krävdes manuella steg efter varje
+`vagrant up` - kopiering av SSH-nycklar, skapande av
+secrets.yml och körning av ansible.cfg-konfiguration.
+Det bröt mot projektets grundkrav på reproducerbarhet.
+
+Med Fas 11 är hela flödet automatiserat:
+```
+vagrant destroy -f ; vagrant up   ← automatiskt
+vagrant ssh control               ← enda manuella steget
+ansible-playbook ~/ansible/site.yml ← förväntat manuellt
+bash ~/scripts/verify.sh          ← PASS=38 FAIL=0
+```
+
+---
+
+### Körda kommandon
+
+#### Windows - PowerShell
+
+```powershell
+# Skapa ny branch för alla fixes
+cd E:\Secure-Infra-Lab
+E:\Secure-Infra-Lab> git checkout -b fix/synced-folder-permissions
+```
+Branch skapad ✅
+
+```powershell
+# Öppna och redigera Vagrantfile
+E:\Secure-Infra-Lab> code vagrant\Vagrantfile
+```
+
+```powershell
+# Verifiera Vagrantfile syntax
+cd E:\Secure-Infra-Lab\vagrant
+E:\Secure-Infra-Lab\vagrant> vagrant validate
+# Vagrantfile validated successfully.
+```
+
+```powershell
+# Testa hela flödet från grunden
+E:\Secure-Infra-Lab\vagrant> vagrant destroy -f ; vagrant up
+```
+Alla 6 VMs startade med `=== SSH keys copied ===` ✅
+
+```powershell
+# Logga in på control och kör playbooken
+E:\Secure-Infra-Lab\vagrant> vagrant ssh control
+```
+
+#### Bash - control (192.168.56.10)
+
+```bash
+# Verifiera att SSH-nycklar finns
+vagrant@control:~$ ls ~/.ssh/
+# authorized_keys  config  database_key  id_rsa  id_rsa.pub
+# monitor_key  nginx_key  web1_key  web2_key
+
+# Verifiera att alla servrar svarar
+vagrant@control:~$ ansible all -m ping
+# 6/6 SUCCESS
+
+# Kör playbooken
+vagrant@control:~$ ansible-playbook ~/ansible/site.yml
+# PLAY RECAP: failed=0 på alla 6 servrar
+
+# Verifiera infrastrukturen
+vagrant@control:~$ bash ~/scripts/verify.sh
+# Results: PASS=38 FAIL=0
+```
+
+```powershell
+# Verifiera från Windows
+E:\Secure-Infra-Lab> powershell -ExecutionPolicy Bypass -File .\scripts\verify_host.ps1
+# Results: PASS=6 FAIL=0
+```
+
+```powershell
+# Tagga main som backup innan merge
+cd E:\Secure-Infra-Lab
+E:\Secure-Infra-Lab> git checkout main
+E:\Secure-Infra-Lab> git tag -a v1.0-working -m "Working state before fix/synced-folder-permissions merge"
+E:\Secure-Infra-Lab> git push origin v1.0-working
+
+# Merga till main
+E:\Secure-Infra-Lab> git merge fix/synced-folder-permissions
+E:\Secure-Infra-Lab> git push origin main
+```
+Merge lyckades - 9 filer uppdaterade ✅
+
+---
+
+### Konfigurationsfiler
+
+📄 `vagrant/Vagrantfile`
+**Vad den gör:** Definierar alla 6 VMs med automatisk
+SSH-nyckelhantering, synced_folder för ansible och
+scripts, Vagrant trigger för nyckelkopiering och
+uppdaterade RAM-värden.
+**Varför den ändrades:** Fyra problem krävde ändringar:
+world-writable ansible.cfg, SSH-nycklar kopierats för
+tidigt (race condition), RAM-brist och manuella steg
+efter vagrant up.
+**Viktigaste ändringar:**
+- `synced_folder "../ansible"` → eliminerar vagrant upload
+- `synced_folder "../scripts"` → verify.sh tillgänglig direkt
+- `config.trigger.after :up` → kopierar SSH-nycklar efter alla VMs startat
+- RAM: nginx/web1/web2 768 MB, database 1024 MB
+- SSH config skapas automatiskt per VM-IP
+- authorized_keys för control skapas automatiskt
+- secrets.yml skapas automatiskt (Brist 6)
+- `/etc/ansible/ansible.cfg` kopieras automatiskt
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/vagrant/Vagrantfile
+
+📄 `scripts/copy_keys.sh`
+**Vad den gör:** Kopierar Vagrants unika SSH-nycklar
+per VM till `/home/vagrant/.ssh/` med chmod 600.
+Körs automatiskt via Vagrant trigger `after :up`.
+**Varför den finns:** Vagrant trigger kan inte köra
+bash-kommandon direkt på control-VM - skriptet
+är bryggan mellan triggern och nyckelkopieringen.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/scripts/copy_keys.sh
+
+📄 `ansible/inventory.ini`
+**Vad den gör:** Pekar nu på Vagrants egna unika
+SSH-nycklar per VM istället för controls id_rsa.
+**Varför den ändrades:** Vagrant 2.x genererar
+unika SSH-nycklar per VM. controls id_rsa fungerar
+inte mot andra VMs efter vagrant up.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/inventory.ini
+
+📄 `ansible/roles/database/tasks/main.yml`
+**Vad den gör:** listen_addresses satt till
+`database_ip` (192.168.56.14) - database-VM:s
+egen IP, inte web1/web2:s IP:er.
+**Varför den ändrades:** Vi satte felaktigt
+listen_addresses till web1 och web2:s IP:er.
+PostgreSQL försökte binda till dessa adresser
+som inte tillhörde database-VM - startup misslyckades.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/database/tasks/main.yml
+
+📄 `ansible/roles/database/handlers/main.yml`
+**Vad den gör:** Startar om `postgresql@14-main`
+(den faktiska tjänsten, inte wrapper-tjänsten)
+och väntar på att port 5432 ska svara.
+**Varför den ändrades:** `postgresql`-tjänsten är
+en wrapper. `postgresql@14-main` är den faktiska
+processen. Restart av wrappern garanterar inte
+att PostgreSQL faktiskt startar om.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/database/handlers/main.yml
+
+📄 `ansible/roles/wazuh_manager/tasks/main.yml`
+**Vad den gör:** Sätter `group: wazuh` (inte ossec)
+vid deployment av ossec.conf.
+**Varför den ändrades:** Wazuh 4.x döpte om
+systemgruppen från `ossec` till `wazuh`.
+chgrp-felet stoppade Wazuh Manager från att starta.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/wazuh_manager/tasks/main.yml
+
+📄 `ansible/roles/wazuh_manager/templates/ossec.conf.j2`
+**Vad den gör:** Innehåller nu ett explicit
+`<command>`-block för `firewall-drop` som krävs
+av Wazuh 4.x för Active Response.
+**Varför den ändrades:** Wazuh 4.x kräver att
+alla Active Response-kommandon definieras explicit.
+Äldre versioner hade inbyggda defaults som försvann.
+**Se filen:** https://github.com/SSM-debug/Secure-Infra-Lab/blob/main/ansible/roles/wazuh_manager/templates/ossec.conf.j2
+
+---
+
+### Problem och lösningar
+
+**Problem 1 - Ansible ignorerade ansible.cfg (world-writable)**
+**Felmeddelande:**
+```
+[WARNING]: Ansible is being run in a world writable
+directory, ignoring it as an ansible.cfg source.
+```
+**Rotorsak:** Vagrant monterar synced_folder med
+0777 (world-writable) på Windows/NTFS. Ansible
+vägrar läsa ansible.cfg från sådana kataloger.
+**Lösning:** Kopiera ansible.cfg till `/etc/ansible/`
+i Vagrantfile provisioning - Ansible läser alltid
+den sökvägen oavsett rättigheter:
+```ruby
+mkdir -p /etc/ansible
+cp /home/vagrant/ansible/ansible.cfg /etc/ansible/ansible.cfg
+```
+**Lärdom:** Säkerhetskontroller i verktyg har
+en anledning - förstå dem innan du kringgår dem.
+
+---
+
+**Problem 2 - SSH-nycklar kopierades för tidigt (race condition)**
+**Felmeddelande:**
+```
+cp: cannot stat '/vagrant/.vagrant/machines/nginx/
+virtualbox/private_key': No such file or directory
+```
+**Rotorsak:** control provisionerades och försökte
+kopiera SSH-nycklar innan de andra VM:arna startats
+och genererat sina nycklar.
+**Lösning:** Vagrant trigger `after :up` körs efter
+att alla VM:ar är uppe - nycklarna finns då:
+```ruby
+config.trigger.after :up do |trigger|
+  trigger.run = {
+    inline: "vagrant ssh control -c 'bash /home/vagrant/scripts/copy_keys.sh'"
+  }
+end
+```
+**Lärdom:** Race conditions uppstår när parallella
+processer delar resurser utan synkronisering.
+Triggers löser timing-problemet elegant.
+
+---
+
+**Problem 3 - PostgreSQL startade inte (listen_addresses)**
+**Felmeddelande:**
+```
+FATAL: could not create any TCP/IP sockets
+WARNING: could not bind IPv4 address "192.168.56.12"
+```
+**Rotorsak:** `listen_addresses` sattes till web1
+och web2:s IP:er. PostgreSQL försökte lyssna PÅ
+dessa adresser - men de tillhör andra servrar.
+**Lösning:**
+```yaml
+line: "listen_addresses = '{{ database_ip }}'"
+# 192.168.56.14 - database-VM:s egen IP
+```
+**Lärdom:** `listen_addresses` styr vilket gränssnitt
+PostgreSQL lyssnar PÅ. `pg_hba.conf` och UFW styr
+VARIFRÅN anslutningar tillåts. Fundamentalt olika.
+
+---
+
+**Problem 4 - Wazuh Manager startade inte (group ossec)**
+**Felmeddelande:**
+```
+chgrp failed: failed to look up group ossec
+```
+**Rotorsak:** Wazuh 4.x döpte om systemgruppen
+från `ossec` till `wazuh`.
+**Lösning:**
+```yaml
+group: wazuh   # Inte 'ossec'
+```
+**Lärdom:** Kontrollera release notes vid
+versionsuppgraderingar - namnbyten är breaking changes.
+
+---
+
+**Problem 5 - Active Response fungerade inte**
+**Felmeddelande:**
+```
+ERROR: (1303): Invalid command 'firewall-drop'
+in the active response.
+```
+**Rotorsak:** Wazuh 4.x kräver explicit
+`<command>`-block för varje Active Response-kommando.
+Äldre versioner hade inbyggda defaults.
+**Lösning:**
+```xml
+<command>
+  <name>firewall-drop</name>
+  <executable>firewall-drop</executable>
+  <timeout_allowed>yes</timeout_allowed>
+</command>
+```
+**Lärdom:** Var explicit - skriv konfigurationen
+istället för att lita på defaults som kan försvinna.
+
+---
+
+**Problem 6 - RAM-brist (OOM killer, rc=137)**
+**Felmeddelande:**
+```
+fatal: [web1]: FAILED! => {"rc": 137}
+# Killed (OOM killer)
+```
+**Rotorsak:** nginx, web1 och web2 hade 512 MB RAM.
+Wazuh-agentinstallationen krävde mer minne och
+kernel OOM killer terminerade processen.
+**Lösning:**
+```ruby
+vb.memory = 768   # nginx, web1, web2: upp från 512 MB
+vb.memory = 1024  # database: upp från 512 MB
+```
+**Lärdom:** rc=137 = OOM kill. Kontrollera alltid
+`free -m` vid mystiska process-krascher.
+
+---
+
+### Slutresultat
+
+```
+vagrant destroy -f ; vagrant up   → === SSH keys copied === ✅
+ansible all -m ping               → 6/6 SUCCESS ✅
+ansible-playbook ~/ansible/site.yml → failed=0 på alla servrar ✅
+bash ~/scripts/verify.sh          → PASS=38 FAIL=0 ✅
+verify_host.ps1                   → PASS=6 FAIL=0 ✅
+```
+
+Infrastrukturen är fullständigt reproducerbar
+och automatiserad - IaC i praktiken.
+
+---
+
+### Teorikoppling
+
+**Koncept: Race condition och Vagrant triggers**
+
+En race condition uppstår när resultatet av en
+operation beror på timing av parallella processer.
+I detta projekt startade control och försökte
+kopiera SSH-nycklar innan de andra VM:arna hunnit
+generera sina nycklar.
+
+Vagrant triggers löser detta med `after :up` -
+ett hook som körs EFTER att alla VM:ar är fullt
+uppstartade. Det garanterar att nycklarna finns
+när copy_keys.sh körs.
+
+I produktionsmiljöer hanteras liknande timing-problem
+med health checks, retry-logik och service dependencies
+i systemd eller Kubernetes.
+
+**Officiell dokumentation:**
+- Vagrant triggers: https://developer.hashicorp.com/vagrant/docs/triggers
+- PostgreSQL listen_addresses: https://www.postgresql.org/docs/14/runtime-config-connection.html
+- Wazuh Active Response: https://documentation.wazuh.com/current/user-manual/capabilities/active-response/
+
+---
+---
