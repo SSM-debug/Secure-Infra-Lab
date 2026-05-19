@@ -17,9 +17,9 @@
     state: started
     enabled: yes
 
-# --- Fix listen_addresses before starting PostgreSQL -------------------
-# Must be done before connecting to the database
-# PostgreSQL cannot bind to web1/web2 IPs - only its own IP
+# --- Restrict PostgreSQL to listen only on its own IP address
+# listen_addresses controls which interface PostgreSQL listens on
+# Defense-in-depth: UFW and pg_hba.conf control who can connect
 - name: Set PostgreSQL listen_addresses
   lineinfile:
     path: /etc/postgresql/14/main/postgresql.conf
@@ -72,16 +72,6 @@
     path: /tmp/schema.sql
   become_user: postgres
 
-# --- Restrict PostgreSQL to listen only on its own IP address
-# listen_addresses controls which interface PostgreSQL listens on
-# Defense-in-depth: UFW and pg_hba.conf control who can connect
-- name: Set PostgreSQL listen_addresses
-  lineinfile:
-    path: /etc/postgresql/14/main/postgresql.conf
-    regexp: "^#?listen_addresses"
-    line: "listen_addresses = '{{ database_ip }}'"
-    state: present
-  
 # --- Allow web1 to authenticate via pg_hba.conf --------------------------
 - name: Allow web1 in pg_hba.conf
   postgresql_pg_hba:
