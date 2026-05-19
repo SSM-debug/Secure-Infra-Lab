@@ -1620,5 +1620,5 @@ Författare:       Sushanta Shekhar Modak & Farhad Norman
 GitHub:           https://github.com/SSM-debug/Secure-Infra-Lab
 Detaljerad logg:  docs/log.md
 Projektplan:      docs/projektplan.md
-Datum:            2026-05-14
+Datum:            2026-05-19
 ```
